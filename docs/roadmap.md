@@ -4,7 +4,8 @@
 
 **Documents:** [Strategy](Client-Portal-Strategy.md) · [Architecture & Schema](Architecture-and-Schema.md) · [Phase 1 build log](../tasks/todo.md)
 **Code:** repository root — Next.js 16, TypeScript, Tailwind v4, Postgres/Supabase
-**Last updated:** 29 July 2026
+**Live:** https://griida-portal.vercel.app
+**Last updated:** 1 August 2026
 
 ---
 
@@ -16,6 +17,7 @@ The **client-facing half of Phase 1 is built and verified.** A client can sign i
 |---|---|
 | Strategy & architecture | ✅ Complete |
 | Phase 1 — client lens | ✅ Built, running on demo data |
+| Phase 1 — deployed | ✅ Live on Vercel, auto-deploys from `main` |
 | Phase 1 — backend wiring | ⬜ Migration written, not provisioned |
 | Phase 1 — internal slice | ⬜ Not started |
 | Phase 2 — internal PM layer | ⬜ Not started |
@@ -62,14 +64,16 @@ Every client-facing string generated from one module, deterministically. No lang
 - Scripts: `npm run cf-build` · `npm run preview` · `npm run deploy`
 - **Verified running on workerd locally** — all 4 routes serve correctly (200/200/200/404), fonts self-hosted, copy intact
 
-**Both hosting routes are blocked on account permissions, not on the code:**
+**Live on Vercel:** https://griida-portal.vercel.app — deployed from `main` via GitHub, auto-deploys on push.
 
-| Host | Blocker | Fix |
-|---|---|---|
-| **Cloudflare Workers** | Free plan caps a Worker at **1 MiB**; the Next.js SSR bundle is ~1.4 MiB compressed (the framework itself — nothing meaningful to trim) | Workers Paid, $5/mo → 10 MiB limit. Then `npm run deploy` |
-| **Vercel** | Connector has read access but **no permission to create a project** (`403 forbidden`) | Create an empty project named `griida-portal` in the dashboard first, or run `npx vercel` locally once |
+Repo: https://github.com/chykeba/griida-portal (public)
 
-Chosen direction: **Vercel** (free Hobby tier runs Next.js SSR with no size limit, and survives Supabase + auth without rework). The Cloudflare setup stays in the repo, so moving to Workers later is a one-command change.
+Notes on the two hosting routes:
+
+| Host | Status |
+|---|---|
+| **Vercel** | In use. Free Hobby tier, SSR, auto-deploy from `main`. `vercel.json` pins the framework preset in code, since the project had none and Vercel fell back to a static build |
+| **Cloudflare Workers** | Config retained and verified on `workerd`, but the free plan caps a Worker at **1 MiB** and the Next.js SSR bundle is ~1.4 MiB compressed. Needs Workers Paid ($5/mo), then `npm run deploy` |
 
 ---
 
