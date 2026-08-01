@@ -63,8 +63,24 @@ export function StatusDot({ tone, className }: { tone: Tone; className?: string 
 }
 
 /* ==========================================================================
-   LABEL — mono, uppercase, letterspaced. Metadata, never body copy.
+   TYPE ROLES
+
+   LABEL — uppercase mono. Names a region ("Brand identity", "Documents").
+           Never a sentence, never a date. Two or three words at most.
+   META  — timestamps, rounds, statuses. Sans, sentence case, 14px.
+
+   The split exists because letterspaced uppercase micro-type is decoration.
+   It was previously carrying every date and status in the product, which is
+   exactly the thing that made screens hard to read.
    ========================================================================== */
+
+const toneText: Record<Tone, string> = {
+  calm: "text-calm",
+  caution: "text-caution",
+  alert: "text-alert",
+  approved: "text-approved",
+  neutral: "",
+};
 
 export function Label({
   children,
@@ -75,22 +91,38 @@ export function Label({
   className?: string;
   tone?: Tone;
 }) {
-  const toneText: Record<Tone, string> = {
-    calm: "text-calm",
-    caution: "text-caution",
-    alert: "text-alert",
-    approved: "text-approved",
-    neutral: "text-ink-faint",
-  };
+  return <span className={cn("label", toneText[tone], className)}>{children}</span>;
+}
+
+export function Meta({
+  children,
+  className,
+  tone = "neutral",
+}: {
+  children: ReactNode;
+  className?: string;
+  tone?: Tone;
+}) {
+  return <span className={cn("meta", toneText[tone], className)}>{children}</span>;
+}
+
+/** Metadata items separated by a middot, wrapping gracefully on narrow screens. */
+export function MetaRow({
+  items,
+  className,
+}: {
+  items: (ReactNode | null | undefined)[];
+  className?: string;
+}) {
+  const shown = items.filter(Boolean);
   return (
-    <span
-      className={cn(
-        "font-mono text-[0.6875rem] uppercase tracking-[0.14em]",
-        toneText[tone],
-        className,
-      )}
-    >
-      {children}
+    <span className={cn("meta flex flex-wrap items-center gap-x-2 gap-y-0.5", className)}>
+      {shown.map((item, i) => (
+        <span key={i} className="inline-flex items-center gap-2">
+          {i > 0 ? <span aria-hidden className="text-rule-strong">·</span> : null}
+          {item}
+        </span>
+      ))}
     </span>
   );
 }
@@ -118,8 +150,8 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-        "font-mono text-[0.6875rem] uppercase tracking-[0.1em] whitespace-nowrap",
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5",
+        "text-small font-medium whitespace-nowrap",
         styles[tone],
         className,
       )}
@@ -167,9 +199,7 @@ export function SectionHeading({
 }) {
   return (
     <div className="mb-4 flex items-baseline justify-between gap-4 border-b border-rule pb-2">
-      <h2 className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-faint">
-        {children}
-      </h2>
+      <h2 className="label text-ink-soft">{children}</h2>
       {aside ? <div className="shrink-0">{aside}</div> : null}
     </div>
   );

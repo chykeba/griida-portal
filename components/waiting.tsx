@@ -49,7 +49,7 @@ export function WaitingList({
                     {due ? (
                       <span
                         className={[
-                          "inline-flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.1em] tabular",
+                          "inline-flex items-center gap-1.5 meta",
                           due.isOverdue ? "text-alert" : "text-ink-faint",
                         ].join(" ")}
                       >
@@ -57,7 +57,7 @@ export function WaitingList({
                         {due.short}
                       </span>
                     ) : null}
-                    <span className="font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint">
+                    <span className="meta">
                       Asked {naturalAge(item.createdAt)}
                     </span>
                   </div>

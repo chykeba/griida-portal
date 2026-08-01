@@ -22,7 +22,7 @@ export function Timeline({ milestones }: { milestones: MilestoneView[] }) {
 
           return (
             <li key={m.id} className="flex items-start">
-              <div className="flex w-[7.5rem] flex-col items-start">
+              <div className="flex w-[8.5rem] flex-col items-start">
                 <div className="flex w-full items-center">
                   <span
                     className={[
@@ -53,13 +53,13 @@ export function Timeline({ milestones }: { milestones: MilestoneView[] }) {
 
                 <p
                   className={[
-                    "mt-2 pr-3 text-small leading-snug",
+                    "mt-2 pr-4 text-base leading-snug",
                     active ? "font-semibold text-ink" : done ? "text-ink-soft" : "text-ink-faint",
                   ].join(" ")}
                 >
                   {m.name}
                 </p>
-                <p className="pr-3 font-mono text-[0.6875rem] tracking-tight text-ink-faint tabular">
+                <p className="meta pr-3">
                   {done
                     ? "Done"
                     : m.targetDate
@@ -67,9 +67,7 @@ export function Timeline({ milestones }: { milestones: MilestoneView[] }) {
                       : ""}
                 </p>
                 {active ? (
-                  <span className="mt-1 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink">
-                    You are here
-                  </span>
+                  <span className="label mt-1 text-ink">You are here</span>
                 ) : null}
               </div>
             </li>

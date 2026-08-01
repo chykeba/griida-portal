@@ -31,7 +31,7 @@ The **client-facing half of Phase 1 is built and verified.** A client can sign i
 
 ### Foundation
 - Next.js 16 + TypeScript + Tailwind v4 scaffold, pinned Turbopack root
-- **Design tokens** ([`app/globals.css`](../app/globals.css)) — warm paper/ink palette, editorial type scale, one motion rhythm, full dark mode
+- **Design tokens** ([`app/globals.css`](../app/globals.css)) — warm paper/ink palette, editorial type scale with named type roles (`.label` / `.meta`), one motion rhythm, light-default theming
 - Type system: Fraunces (display) / Instrument Sans (UI) / JetBrains Mono (metadata)
 - Brand gradient quarantined to the mark + one hairline per screen (§6a)
 

@@ -45,11 +45,11 @@ export function ViewSwitcher({
             aria-current={isActive ? "page" : undefined}
             title={hint}
             className={[
-              "pressable inline-flex min-h-9 items-center gap-1.5 rounded-md border px-2.5",
-              "font-mono text-[0.6875rem] uppercase tracking-[0.1em]",
+              "pressable inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3",
+              "text-small font-medium",
               isActive
                 ? "border-ink bg-ink text-paper-raised"
-                : "border-rule text-ink-faint hover:border-rule-strong hover:text-ink",
+                : "border-rule-interactive text-ink-soft hover:border-ink hover:text-ink",
             ].join(" ")}
           >
             <Icon className="size-3.5" strokeWidth={1.75} aria-hidden />

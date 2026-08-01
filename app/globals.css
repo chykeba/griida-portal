@@ -26,10 +26,18 @@
   --color-paper-raised: #ffffff;
   --color-paper-sunk: #f4f2ee;
   --color-ink: #0a0d14;
-  --color-ink-soft: #4a5160;
-  --color-ink-faint: #6b7280;
+  /* Secondary text carries real content — descriptions, explanations — so it
+     is only one step down from ink, not a whisper. */
+  --color-ink-soft: #3d4452;
+  /* Tertiary is for labels and timestamps. Still comfortably above AA at
+     small sizes; the old value was technically passing and practically grey. */
+  --color-ink-faint: #5a6170;
   --color-rule: #e5e1d9;
-  --color-rule-strong: #d2cdc2;
+  --color-rule-strong: #cfc9bd;
+  /* Borders that ARE the boundary of a control (secondary buttons, inputs)
+     need 3:1 against the page — WCAG 1.4.11. Decorative hairlines don't, and
+     darkening those would flatten the paper feel. So: two border tokens. */
+  --color-rule-interactive: #968f81;
 
   /* ---- Status. Deliberately muted; see rule 2 above -------------------- */
   --color-calm: #2f6b4f; /* on track — deep pine, NOT the brand spring green */
@@ -38,18 +46,21 @@
   --color-approved: #0d7a5f; /* approved & delivered only */
 
   /* ---- Type ------------------------------------------------------------ */
-  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-display: var(--font-newsreader), Georgia, serif;
   --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 
   /* Editorial scale — deliberately not a doubling ladder */
-  --text-micro: 0.6875rem; /* 11px — mono metadata only */
-  --text-small: 0.8125rem; /* 13px */
+  /* Nothing carrying content sits below 14px. `micro` is for uppercase labels
+     only — and it went UP from 11px, because letterspaced uppercase needs more
+     size than lowercase to stay legible, not less. */
+  --text-micro: 0.75rem; /* 12px — labels, never sentences */
+  --text-small: 0.875rem; /* 14px — supporting copy */
   --text-base: 1rem; /* 16px — iOS zoom floor (§6b) */
-  --text-lead: 1.125rem;
-  --text-title: 1.375rem;
-  --text-headline: 1.75rem;
-  --text-display: 2.25rem;
+  --text-lead: 1.1875rem; /* 19px */
+  --text-title: 1.4375rem; /* 23px */
+  --text-headline: 1.875rem; /* 30px */
+  --text-display: 2.375rem; /* 38px */
   --text-display-lg: 3rem;
 
   /* ---- Motion. One rhythm across the whole product --------------------- */
@@ -78,6 +89,7 @@
   --color-ink-faint: #8b929d;
   --color-rule: #23272f;
   --color-rule-strong: #333842;
+  --color-rule-interactive: #636a78;
 
   --color-calm: #6cc79b;
   --color-caution: #e0a355;
@@ -101,7 +113,7 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: var(--text-base);
-  line-height: 1.55;
+  line-height: 1.62;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
@@ -125,6 +137,34 @@ body {
 /* Numbers must not jitter when they change (dates, counters, ages) */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- Type roles ---------------------------------------------------------
+   `.label`  uppercase mono, for naming a region. Never a sentence.
+   `.meta`   timestamps, rounds, statuses. Sans and sentence case, because
+             this is information people read, not decoration.
+   ------------------------------------------------------------------------ */
+
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  line-height: 1.4;
+  color: var(--color-ink-faint);
+}
+
+.meta {
+  font-size: var(--text-small);
+  line-height: 1.45;
+  color: var(--color-ink-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Editorial headings: the serif needs tighter leading than body copy, and
+   optical sizing looks wrong at display sizes without it. */
+.font-display {
+  letter-spacing: -0.015em;
 }
 
 /* Theme-conditional display. Lets the theme toggle be stateless — CSS decides

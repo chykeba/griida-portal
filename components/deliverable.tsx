@@ -60,10 +60,10 @@ export function DeliverableCard({
       ) : null}
 
       <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint tabular">
+        <span className="meta">
           {rounds.label}
         </span>
-        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint">
+        <span className="meta">
           Updated {naturalAge(deliverable.updatedAt)}
         </span>
       </div>
@@ -117,7 +117,7 @@ export function LinkRow({ link }: { link: LinkModel }) {
     >
       <span className="min-w-0">
         <span className="block truncate text-small font-medium">{link.label}</span>
-        <span className="mt-0.5 flex items-center gap-1.5 font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint">
+        <span className="mt-0.5 flex items-center gap-1.5 meta">
           {providerName[link.provider]}
           {link.bestOnDesktop ? (
             <>

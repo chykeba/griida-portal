@@ -133,16 +133,16 @@ export function SheetView({
         <table className="w-full min-w-[42rem] border-collapse text-left">
           <thead>
             <tr className="border-b border-rule-strong">
-              <th scope="col" className="py-2 pr-4 font-mono text-[0.6875rem] font-normal uppercase tracking-[0.12em] text-ink-faint">
+              <th scope="col" className="py-2 pr-4 meta">
                 Item
               </th>
-              <th scope="col" className="w-36 py-2 pr-4 font-mono text-[0.6875rem] font-normal uppercase tracking-[0.12em] text-ink-faint">
+              <th scope="col" className="w-36 py-2 pr-4 meta">
                 Status
               </th>
-              <th scope="col" className="w-44 py-2 pr-4 font-mono text-[0.6875rem] font-normal uppercase tracking-[0.12em] text-ink-faint">
+              <th scope="col" className="w-44 py-2 pr-4 meta">
                 Date / round
               </th>
-              <th scope="col" className="w-36 py-2 font-mono text-[0.6875rem] font-normal uppercase tracking-[0.12em] text-ink-faint">
+              <th scope="col" className="w-36 py-2 meta">
                 Last touched
               </th>
             </tr>
@@ -190,11 +190,11 @@ export function SheetView({
                     </span>
                   </td>
 
-                  <td className={`py-3 pr-4 font-mono text-[0.6875rem] uppercase tracking-[0.1em] tabular ${row.dueOverdue ? "text-alert" : "text-ink-soft"}`}>
+                  <td className={`py-3 pr-4 meta ${row.dueOverdue ? "text-alert" : "text-ink-soft"}`}>
                     {row.due ?? "—"}
                   </td>
 
-                  <td className="py-3 font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint">
+                  <td className="py-3 meta">
                     {row.updated ?? "—"}
                   </td>
                 </tr>
@@ -257,7 +257,7 @@ export function BoardView({
           return (
             <section key={col.title} className="w-[17rem] shrink-0 lg:w-auto">
               <div className="mb-3 border-b border-rule-strong pb-2">
-                <h3 className="flex items-center gap-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em]">
+                <h3 className="flex items-center gap-2 meta">
                   <StatusDot tone={col.tone} />
                   {col.title}
                   <span className="ml-auto tabular text-ink-faint">{items.length}</span>

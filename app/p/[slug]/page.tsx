@@ -122,7 +122,7 @@ export default async function ProjectPage({
                   <ol className="stagger space-y-5">
                     {project.updates.map((u) => (
                       <li key={u.id} className="border-l-2 border-rule pl-4">
-                        <p className="font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink-faint">
+                        <p className="meta">
                           {u.author} · {naturalAge(u.publishedAt)}
                         </p>
                         <p className="mt-1.5 max-w-[62ch] leading-relaxed">{u.body}</p>
@@ -140,7 +140,7 @@ export default async function ProjectPage({
                     {project.decisions.map((d) => (
                       <div key={d.id} className="px-4 py-3">
                         <p className="text-small leading-relaxed">{d.summary}</p>
-                        <p className="mt-1 font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint">
+                        <p className="mt-1 meta">
                           {d.decidedBy} · {naturalDate(d.decidedOn)}
                         </p>
                       </div>

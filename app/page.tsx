@@ -51,9 +51,7 @@ export default async function WorkspacePage() {
       <Page width="wide">
         {/* --- The anxious question, answered before anything else (§1) --- */}
         <section className="animate-rise pt-8 pb-7">
-          <p className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-faint">
-            Hello {ws.contactFirstName}
-          </p>
+          <Label>Hello {ws.contactFirstName}</Label>
           <h1 className="mt-2 flex items-start gap-2.5 font-display text-display leading-[1.1] font-semibold tracking-tight">
             <StatusDot tone={rollUp.tone} className="mt-3.5" />
             <span>{rollUp.headline}</span>
@@ -133,11 +131,11 @@ export default async function WorkspacePage() {
 
                       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                         {due ? (
-                          <span className="font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint tabular">
+                          <span className="meta">
                             {due.short}
                           </span>
                         ) : null}
-                        <span className="font-mono text-[0.6875rem] uppercase tracking-[0.1em] text-ink-faint">
+                        <span className="meta">
                           Updated {naturalAge(project.lastUpdatedAt)}
                         </span>
                       </div>

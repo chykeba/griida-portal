@@ -109,7 +109,7 @@ export function ReviewForm({
             "w-full resize-y rounded-md border bg-paper-raised px-3.5 py-3",
             "text-base leading-relaxed placeholder:text-ink-faint",
             "transition-colors duration-150 outline-none",
-            error ? "border-alert" : "border-rule focus:border-ink",
+            error ? "border-alert" : "border-rule-interactive focus:border-ink",
           )}
         />
         {error ? (
@@ -148,7 +148,7 @@ export function ReviewForm({
           <button
             type="button"
             onClick={() => setSavedForDesktop(true)}
-            className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rule-strong px-5 text-base font-medium md:hidden"
+            className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rule-interactive px-5 text-base font-medium md:hidden"
           >
             {savedForDesktop ? (
               <>
@@ -168,7 +168,7 @@ export function ReviewForm({
           type="button"
           onClick={() => submit("changes")}
           disabled={sending}
-          className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rule-strong px-5 text-base font-medium disabled:opacity-50"
+          className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rule-interactive px-5 text-base font-medium disabled:opacity-50"
         >
           {sending && decision === "changes" ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />

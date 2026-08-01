@@ -33,7 +33,7 @@ export default async function ReviewPage({
           <h1 className="font-display text-headline leading-tight font-semibold tracking-tight">
             {deliverable.name}
           </h1>
-          <p className="mt-2 font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink-faint tabular">
+          <p className="mt-2 meta">
             {rounds.label} · Updated {naturalAge(deliverable.updatedAt)}
           </p>
 
@@ -57,7 +57,7 @@ export default async function ReviewPage({
                     Open {link.label}
                   </span>
                   {link.bestOnDesktop ? (
-                    <span className="mt-0.5 block font-mono text-[0.6875rem] uppercase tracking-[0.1em] opacity-70">
+                    <span className="mt-0.5 block meta opacity-70">
                       Opens in Figma · best on a computer
                     </span>
                   ) : null}

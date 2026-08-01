@@ -1,20 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Instrument_Sans, JetBrains_Mono } from "next/font/google";
+import { Instrument_Sans, JetBrains_Mono, Newsreader } from "next/font/google";
 import "./globals.css";
 
 /**
  * Type choice, and why (§6a):
- *  Fraunces        — an editorial serif with a point of view. Carries the one
- *                    sentence per screen that actually matters.
+ *  Newsreader      — an editorial serif drawn for reading on screens. It
+ *                    replaced Fraunces, which had more personality than
+ *                    legibility at heading sizes and read a little costume-y.
  *  Instrument Sans — a grotesque with a little warmth. Not Inter, not Geist,
  *                    not Poppins; those read as "generated" now.
- *  JetBrains Mono  — dates, rounds, counters. Mono metadata is what makes an
- *                    interface feel designed rather than assembled.
+ *  JetBrains Mono  — used sparingly, for uppercase region labels only. It is
+ *                    no longer carrying dates or statuses: letterspaced
+ *                    uppercase micro-type is decoration, not something to
+ *                    make people read.
  */
-const fraunces = Fraunces({
+const newsreader = Newsreader({
   subsets: ["latin"],
-  variable: "--font-fraunces",
+  variable: "--font-newsreader",
   display: "swap",
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
 });
 
 const instrument = Instrument_Sans({
@@ -60,7 +65,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="light"
-      className={`${fraunces.variable} ${instrument.variable} ${jetbrains.variable} h-full antialiased`}
+      className={`${newsreader.variable} ${instrument.variable} ${jetbrains.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlashTheme }} />

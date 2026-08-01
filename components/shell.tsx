@@ -48,7 +48,7 @@ export function AppHeader({
         )}
         <div className="flex min-w-0 items-center gap-2">
           {accountName ? (
-            <span className="truncate font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink-faint">
+            <span className="truncate meta">
               {accountName}
             </span>
           ) : null}
@@ -87,7 +87,7 @@ export function Footer({
       className={`mx-auto mt-12 w-full ${WIDTHS[width]} border-t border-rule px-5 py-6 pad-safe-bottom`}
     >
       {/* Recency reassures; a stale portal destroys trust faster than none (§6) */}
-      <p className="font-mono text-[0.6875rem] uppercase tracking-[0.12em] text-ink-faint tabular">
+      <p className="meta">
         {freshness(lastUpdated)}
       </p>
       <p className="mt-2 max-w-[46ch] text-small leading-relaxed text-ink-soft">

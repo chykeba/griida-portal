@@ -49,7 +49,9 @@ Logo, plus at most one hairline accent per screen. Never cards, buttons, headers
 - High-stakes deliverables have no approve button on a phone — that's intentional, not a bug.
 - **No file storage.** Every artifact is a link. There is no upload path by design.
 - **Typographic apostrophes** (`’`) in all user-facing copy.
-- Type: Fraunces (display) / Instrument Sans (UI) / JetBrains Mono (metadata).
+- **Type roles, not ad-hoc classes.** `.label` is uppercase mono for *naming a region* — never a sentence, never a date. `.meta` (sans, 14px) carries timestamps, rounds and statuses. Letterspaced uppercase micro-type is decoration; don't make people read it.
+- Nothing carrying content sits below 14px.
+- Type: Newsreader (display) / Instrument Sans (UI) / JetBrains Mono (labels only).
 
 ## Status
 
