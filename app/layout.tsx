@@ -40,11 +40,18 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   // maximumScale is deliberately absent — never disable pinch zoom (a11y).
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfaf8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0d11" },
-  ],
+  themeColor: "#fbfaf8",
 };
+
+/**
+ * Applies the saved theme before first paint, so a returning dark-mode user
+ * never sees a white flash. Runs blocking and synchronously on purpose — it is
+ * three lines, and the alternative is a visible flicker on every navigation.
+ *
+ * Light is the default. We do not read prefers-color-scheme: the studio's work
+ * is presented on paper-white unless someone deliberately chooses otherwise.
+ */
+const noFlashTheme = `try{var t=localStorage.getItem("griida-theme");if(t==="dark")document.documentElement.dataset.theme="dark"}catch(e){}`;
 
 export default function RootLayout({
   children,
@@ -52,8 +59,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-theme="light"
       className={`${fraunces.variable} ${instrument.variable} ${jetbrains.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: noFlashTheme }} />
+      </head>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

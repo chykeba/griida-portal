@@ -65,22 +65,24 @@
   --radius-lg: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  @theme {
-    --color-paper: #0b0d11;
-    --color-paper-raised: #14171d;
-    --color-paper-sunk: #090b0e;
-    --color-ink: #f2f0ec;
-    --color-ink-soft: #a7adb8;
-    --color-ink-faint: #8b929d;
-    --color-rule: #23272f;
-    --color-rule-strong: #333842;
+/* Dark is opt-in, not automatic. Light is the studio's default look; dark is
+   there for people who want it, chosen explicitly and remembered.
+   Overriding the raw custom properties re-points every Tailwind utility that
+   references them, so no `dark:` variants are needed anywhere in markup. */
+[data-theme="dark"] {
+  --color-paper: #0b0d11;
+  --color-paper-raised: #14171d;
+  --color-paper-sunk: #090b0e;
+  --color-ink: #f2f0ec;
+  --color-ink-soft: #a7adb8;
+  --color-ink-faint: #8b929d;
+  --color-rule: #23272f;
+  --color-rule-strong: #333842;
 
-    --color-calm: #6cc79b;
-    --color-caution: #e0a355;
-    --color-alert: #f08a76;
-    --color-approved: #4fd6ab;
-  }
+  --color-calm: #6cc79b;
+  --color-caution: #e0a355;
+  --color-alert: #f08a76;
+  --color-approved: #4fd6ab;
 }
 
 /* ============================================================================
@@ -111,10 +113,8 @@ body {
   outline-offset: 2px;
   border-radius: 3px;
 }
-@media (prefers-color-scheme: dark) {
-  :focus-visible {
-    outline-color: var(--color-brand-cyan);
-  }
+[data-theme="dark"] :focus-visible {
+  outline-color: var(--color-brand-cyan);
 }
 
 ::selection {
@@ -125,6 +125,18 @@ body {
 /* Numbers must not jitter when they change (dates, counters, ages) */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Theme-conditional display. Lets the theme toggle be stateless — CSS decides
+   which icon is visible, so React never has to know the current theme. */
+.when-dark {
+  display: none;
+}
+[data-theme="dark"] .when-dark {
+  display: initial;
+}
+[data-theme="dark"] .when-light {
+  display: none;
 }
 
 /* Safe-area helpers — nothing sits under the notch or gesture bar (§6b) */

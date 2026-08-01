@@ -43,7 +43,10 @@ Logo, plus at most one hairline accent per screen. Never cards, buttons, headers
 
 ## Conventions
 
-- **Mobile-first for clients** (375px baseline). High-stakes deliverables have no approve button on a phone — that's intentional, not a bug.
+- **Mobile-first for clients** (375px baseline), with a real desktop layout above `lg` — side rail on the story view, wider measure for the data views. Widening a container is not the same as designing for desktop; reading columns stay narrow.
+- **Three project views**, driven by the `?view=` search param rather than client state — works without JS, the back button behaves, and a client can send their boss a link straight to the tracking sheet. `story` (default) · `sheet` · `board`.
+- **Light by default.** Dark is opt-in via the toggle and remembered; `prefers-color-scheme` is deliberately *not* consulted — the studio's work is presented on paper-white unless someone chooses otherwise.
+- High-stakes deliverables have no approve button on a phone — that's intentional, not a bug.
 - **No file storage.** Every artifact is a link. There is no upload path by design.
 - **Typographic apostrophes** (`’`) in all user-facing copy.
 - Type: Fraunces (display) / Instrument Sans (UI) / JetBrains Mono (metadata).

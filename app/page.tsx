@@ -46,9 +46,9 @@ export default async function WorkspacePage() {
 
   return (
     <>
-      <AppHeader accountName={ws.accountName} />
+      <AppHeader accountName={ws.accountName} width="wide" />
 
-      <Page>
+      <Page width="wide">
         {/* --- The anxious question, answered before anything else (§1) --- */}
         <section className="animate-rise pt-8 pb-7">
           <p className="font-mono text-[0.6875rem] uppercase tracking-[0.14em] text-ink-faint">
@@ -65,9 +65,12 @@ export default async function WorkspacePage() {
           </p>
         </section>
 
+        {/* On desktop these two sit side by side; on a phone "Needs you" stays
+            first, because that is what the client came to resolve. */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-10">
         {/* --- What the client owes us. Above the fold on a phone (§6b). --- */}
         {waiting.length > 0 ? (
-          <section className="mb-10">
+          <section className="mb-10 lg:order-2 lg:mb-0">
             <SectionHeading aside={<Badge tone="caution">{waiting.length} open</Badge>}>
               Needs you
             </SectionHeading>
@@ -76,7 +79,7 @@ export default async function WorkspacePage() {
         ) : null}
 
         {/* --- Projects ------------------------------------------------- */}
-        <section className="mb-10">
+        <section className="mb-10 lg:order-1">
           <SectionHeading>Your projects</SectionHeading>
 
           {ws.projects.length === 0 ? (
@@ -145,6 +148,7 @@ export default async function WorkspacePage() {
             </ul>
           )}
         </section>
+        </div>
 
         {/* --- Brand library: carries across every project (§3a) -------- */}
         <section>
@@ -153,7 +157,7 @@ export default async function WorkspacePage() {
             Everything of yours we hold, in one place. It stays here between
             projects, so we never ask you for the same thing twice.
           </p>
-          <div className="stagger space-y-2">
+          <div className="stagger grid gap-2 sm:grid-cols-2">
             {ws.brandLibrary.map((link) => (
               <LinkRow key={link.id} link={link} />
             ))}
@@ -161,7 +165,7 @@ export default async function WorkspacePage() {
         </section>
       </Page>
 
-      <Footer lastUpdated={lastTouched} />
+      <Footer lastUpdated={lastTouched} width="wide" />
     </>
   );
 }
