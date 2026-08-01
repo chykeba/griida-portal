@@ -1,0 +1,266 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   GRIIDA CLIENT PORTAL — DESIGN TOKENS
+   Reference: Client-Portal-Strategy.md §6a (must not look AI-generated),
+              Architecture-and-Schema.md §10 (brand tokens)
+
+   Three rules this file enforces:
+   1. The brand gradient belongs to the MARK. Never on cards, buttons, headers
+      or backgrounds. One accent moment per screen, maximum.
+   2. Colour appears when something needs attention. "On track" is quiet —
+      most portals shout green at you; real confidence is quieter than that.
+   3. Type carries the design. Editorial serif for the sentence that matters,
+      grotesque for interface, mono for metadata.
+   ========================================================================= */
+
+@theme {
+  /* ---- Brand: the mark only ------------------------------------------- */
+  --color-brand-violet: #a855f7;
+  --color-brand-magenta: #ff6fb1;
+  --color-brand-cyan: #12c2ff;
+  --color-brand-green: #00f0a8;
+
+  /* ---- Paper & ink: warm, printed, not screen-blue --------------------- */
+  --color-paper: #fbfaf8;
+  --color-paper-raised: #ffffff;
+  --color-paper-sunk: #f4f2ee;
+  --color-ink: #0a0d14;
+  --color-ink-soft: #4a5160;
+  --color-ink-faint: #6b7280;
+  --color-rule: #e5e1d9;
+  --color-rule-strong: #d2cdc2;
+
+  /* ---- Status. Deliberately muted; see rule 2 above -------------------- */
+  --color-calm: #2f6b4f; /* on track — deep pine, NOT the brand spring green */
+  --color-caution: #a8620a; /* at risk */
+  --color-alert: #b3301c; /* blocked / overdue */
+  --color-approved: #0d7a5f; /* approved & delivered only */
+
+  /* ---- Type ------------------------------------------------------------ */
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+
+  /* Editorial scale — deliberately not a doubling ladder */
+  --text-micro: 0.6875rem; /* 11px — mono metadata only */
+  --text-small: 0.8125rem; /* 13px */
+  --text-base: 1rem; /* 16px — iOS zoom floor (§6b) */
+  --text-lead: 1.125rem;
+  --text-title: 1.375rem;
+  --text-headline: 1.75rem;
+  --text-display: 2.25rem;
+  --text-display-lg: 3rem;
+
+  /* ---- Motion. One rhythm across the whole product --------------------- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-soft: cubic-bezier(0.55, 0, 1, 0.45);
+  --dur-tap: 120ms;
+  --dur-quick: 180ms;
+  --dur-base: 260ms;
+  --dur-considered: 380ms;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-paper: #0b0d11;
+    --color-paper-raised: #14171d;
+    --color-paper-sunk: #090b0e;
+    --color-ink: #f2f0ec;
+    --color-ink-soft: #a7adb8;
+    --color-ink-faint: #8b929d;
+    --color-rule: #23272f;
+    --color-rule-strong: #333842;
+
+    --color-calm: #6cc79b;
+    --color-caution: #e0a355;
+    --color-alert: #f08a76;
+    --color-approved: #4fd6ab;
+  }
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================= */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  /* Removes the 300ms tap delay without disabling zoom (§6b, a11y) */
+  touch-action: manipulation;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+/* Focus that is visible without being ugly. Never removed. */
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+@media (prefers-color-scheme: dark) {
+  :focus-visible {
+    outline-color: var(--color-brand-cyan);
+  }
+}
+
+::selection {
+  background: var(--color-brand-cyan);
+  color: #04070d;
+}
+
+/* Numbers must not jitter when they change (dates, counters, ages) */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Safe-area helpers — nothing sits under the notch or gesture bar (§6b) */
+.pad-safe-top {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+.pad-safe-bottom {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* ============================================================================
+   THE ONE GRADIENT MOMENT
+   Permitted on: the logo mark, and a single hairline accent per screen.
+   Not permitted on: cards, buttons, headers, backgrounds, dividers.
+   ========================================================================= */
+
+.brand-gradient {
+  background: linear-gradient(
+    112deg,
+    var(--color-brand-violet),
+    var(--color-brand-magenta) 32%,
+    var(--color-brand-cyan) 68%,
+    var(--color-brand-green)
+  );
+}
+
+.brand-hairline {
+  background: linear-gradient(
+    90deg,
+    var(--color-brand-violet),
+    var(--color-brand-magenta) 32%,
+    var(--color-brand-cyan) 68%,
+    var(--color-brand-green)
+  );
+}
+
+/* ============================================================================
+   MOTION PRIMITIVES
+   Rules: transform/opacity only (never width/height/top/left), exit shorter
+   than enter, everything collapses to nothing under reduced-motion.
+   ========================================================================= */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-rise {
+  animation: rise var(--dur-base) var(--ease-out-soft) both;
+}
+.animate-settle {
+  animation: settle var(--dur-considered) var(--ease-out-soft) both;
+}
+.animate-sweep {
+  transform-origin: left;
+  animation: sweep var(--dur-considered) var(--ease-out-soft) both;
+}
+
+/* Staggered list entrance — 40ms apart (Material guidance: 30–50ms) */
+.stagger > * {
+  animation: rise var(--dur-base) var(--ease-out-soft) both;
+}
+.stagger > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.stagger > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.stagger > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.stagger > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.stagger > *:nth-child(6) {
+  animation-delay: 200ms;
+}
+.stagger > *:nth-child(7) {
+  animation-delay: 240ms;
+}
+.stagger > *:nth-child(n + 8) {
+  animation-delay: 280ms;
+}
+
+/* Press feedback that does not shift layout */
+.pressable {
+  transition:
+    transform var(--dur-tap) var(--ease-out-soft),
+    background-color var(--dur-quick) var(--ease-out-soft),
+    border-color var(--dur-quick) var(--ease-out-soft);
+}
+.pressable:active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .pressable:active {
+    transform: none;
+  }
+}
