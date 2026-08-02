@@ -91,7 +91,8 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] Append-only triggers on the audit logs, verified firing
 - [x] **Publish boundary rebuilt in code** — D1 has no RLS, so `lib/db/tables.ts` classifies every table, all client SQL lives in `client-queries.ts`, and `boundary.test.ts` fails the build on a violation. Mutation-tested: injecting a join onto `tasks` fails the suite
 - [x] D1 HTTP client with a runtime guard on client queries
-- [ ] **Add `CLOUDFLARE_API_TOKEN`** to Vercel env (needs D1 Edit permission) — the app falls back to demo data until then
+- [x] D1 credentials verified; **read path wired live** — `lib/data/index.ts` reads through `client-queries.ts`, scoped to the session user
+- [ ] **Add the three CLOUDFLARE_* vars to Vercel** so the deployment leaves demo mode (works locally today)
 - [x] **Seeded** (`db/seed/0001_demo.sql`) — 6 users, 2 projects, 3 project types, 11 milestones, 5 deliverables, 7 tasks, 3 blockers, an 8-item SOP checklist with 4 signed attestations. Idempotent; dates are relative so the natural-language layer keeps working
 - [x] Super admin: **hellogriida@gmail.com**
 - [x] **Magic-link auth built** — 60-minute single-use links, 30-day absolute sessions, secrets SHA-256 hashed at rest, httpOnly/sameSite cookies
@@ -99,7 +100,9 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] All 8 studio pages and 3 client pages gated
 - [x] **Demo mode** — with no DB credentials the app serves fixtures and needs no login, so the public preview keeps working. Keyed off the *absence* of a database, so it cannot be on where there is real data
 - [ ] Add `RESEND_API_KEY` to actually send the emails (link is logged/shown until then)
-- [ ] Swap [`lib/data/index.ts`](../lib/data/index.ts) to read through `client-queries.ts` (needs a session to scope by)
+- [x] Swapped [`lib/data/index.ts`](../lib/data/index.ts) — verified end to end with real sessions against live D1
+- [ ] Studio lens still reads fixtures (`lib/studio/data.ts`) — same treatment needed
+- [ ] Writes: approve / request changes / checklist ticks still simulated
 
 **Make the actions real**
 - [ ] Server actions for approve / request changes → `reviews` + `feedback_comments`

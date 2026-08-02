@@ -69,10 +69,10 @@ INSERT OR REPLACE INTO checklist_template_items
   ('cti_2','ct_iconset_v2',2,'PNG set @1x/2x/3x',NULL,1,'link','Drive',0,1,NULL),
   ('cti_3','ct_iconset_v2',3,'Consistent grid and stroke weight',NULL,1,'none',NULL,0,0,NULL),
   ('cti_4','ct_iconset_v2',4,'Named per convention','kebab-case, category prefix.',1,'none',NULL,0,0,NULL),
-  ('cti_5','ct_iconset_v2',5,'Contrast checked','Against both surfaces. Self-certification isn''t enough here.',1,'text',NULL,1,0,NULL),
+  ('cti_5','ct_iconset_v2',5,'Contrast checked','Against both surfaces. Self-certification isn’t enough here.',1,'text',NULL,1,0,NULL),
   ('cti_6','ct_iconset_v2',6,'Dark-mode variants',NULL,1,'link',NULL,0,0,'dark-mode'),
   ('cti_7','ct_iconset_v2',7,'Source file archived to the brand library',NULL,1,'link','Figma',0,0,NULL),
-  ('cti_8','ct_iconset_v2',8,'Client sharing permissions verified','Nothing publishes with a link they can''t open.',1,'none',NULL,0,0,NULL);
+  ('cti_8','ct_iconset_v2',8,'Client sharing permissions verified','Nothing publishes with a link they can’t open.',1,'none',NULL,0,0,NULL);
 
 -- ---------- links -------------------------------------------------------------
 INSERT OR REPLACE INTO links (id, url, label, provider, account_id, added_by, best_on_desktop, client_access_ok, health, is_durable) VALUES
@@ -96,10 +96,10 @@ INSERT OR REPLACE INTO projects
   (id, account_id, project_type_id, name, slug, status, health, health_note, health_set_by, health_set_at,
    lead_id, applies_tags, rounds_included, target_end_on, last_published_at, created_at) VALUES
   ('prj_brand','acc_ovis','pt_brand','Brand Identity','brand-identity','active','blocked',
-   'We''re holding until you pick a direction.','u_chike', datetime('now','-1 days'),
+   'We’re holding until you pick a direction.','u_chike', datetime('now','-1 days'),
    'u_chike','["dark-mode"]',2, date('now','+40 days'), datetime('now','-9 days'), datetime('now','-45 days')),
   ('prj_site','acc_ovis','pt_website','Website','website','active','on_track',
-   'Design''s done. We''re building.','u_ada', datetime('now','-2 days'),
+   'Design’s done. We’re building.','u_ada', datetime('now','-2 days'),
    'u_ada','["multi-language"]',2, date('now','+56 days'), datetime('now','-2 days'), datetime('now','-40 days'));
 
 INSERT OR REPLACE INTO project_client_roles (project_id, user_id, role) VALUES
@@ -127,7 +127,7 @@ INSERT OR REPLACE INTO deliverables
   (id, project_id, milestone_id, deliverable_type_id, name, type_name, summary, status, state_changed_at,
    owner_id, current_round, requires_considered_review, created_at) VALUES
   ('dlv_concepts','prj_brand','ms_b3','dt_concepts','Three logo directions','Logo concepts',
-   'Three genuinely different routes rather than three versions of one idea. We''ve a favourite, but we''d rather hear yours first.',
+   'Three genuinely different routes rather than three versions of one idea. We’ve a favourite, but we’d rather hear yours first.',
    'in_review', datetime('now','-9 days'),'u_chike',1,1, datetime('now','-14 days')),
   ('dlv_moodboard','prj_brand','ms_b2','dt_moodboard','Direction & moodboard','Moodboard', NULL,
    'approved', datetime('now','-17 days'),'u_chike',1,0, datetime('now','-24 days')),
@@ -135,10 +135,10 @@ INSERT OR REPLACE INTO deliverables
    'Not ready for the client yet — checklist still open.',
    'draft', datetime('now','-1 days'),'u_femi',1,0, datetime('now','-6 days')),
   ('dlv_pages','prj_site','ms_w2','dt_pages','Page designs','Page designs',
-   'Your notes on the pricing page are in — we''re reworking that section now.',
+   'Your notes on the pricing page are in — we’re reworking that section now.',
    'changes_requested', datetime('now','-2 days'),'u_ada',2,1, datetime('now','-30 days')),
   ('dlv_staging','prj_site','ms_w4','dt_built','Staging site','Built site',
-   'About half the pages are built. Nothing worth looking at yet — we''ll tell you when there is.',
+   'About half the pages are built. Nothing worth looking at yet — we’ll tell you when there is.',
    'draft', datetime('now','-2 days'),'u_femi',1,0, datetime('now','-20 days'));
 
 INSERT OR REPLACE INTO deliverable_versions (id, deliverable_id, round, review_link_id, published_at, published_by) VALUES
@@ -161,10 +161,10 @@ INSERT OR REPLACE INTO feedback_comments (id, version_id, author_id, body, sourc
 -- ---------- what the client owes us -------------------------------------------
 INSERT OR REPLACE INTO client_actions (id, project_id, title, description, assigned_to, due_on, status, blocks_note, created_at) VALUES
   ('ca_1','prj_brand','Pick a direction from the three concepts',
-   'You don''t need to love everything about one — just tell us which feels closest and we''ll take it from there.',
+   'You don’t need to love everything about one — just tell us which feels closest and we’ll take it from there.',
    'u_tunde', date('now','-2 days'),'open','refining the identity', datetime('now','-9 days')),
   ('ca_2','prj_site','Send us the team photos',
-   'Headshots for the eight people on the About page. A Drive link is perfect — they don''t need to be edited.',
+   'Headshots for the eight people on the About page. A Drive link is perfect — they don’t need to be edited.',
    'u_tunde', date('now','+6 days'),'open','building the About page', datetime('now','-3 days')),
   ('ca_3','prj_site','Confirm the pricing copy','Final wording for the three plan cards.',
    'u_tunde', date('now','+9 days'),'open', NULL, datetime('now','-1 days'));
@@ -172,13 +172,13 @@ INSERT OR REPLACE INTO client_actions (id, project_id, title, description, assig
 -- ---------- published updates -------------------------------------------------
 INSERT OR REPLACE INTO updates (id, project_id, body, health_at_publish, review_deliverable_id, status, published_by, published_at) VALUES
   ('upd_1','prj_brand',
-   'Three directions are up and ready for you. They''re deliberately far apart — we''d rather find the right territory now than polish the wrong one later. Have a look when you get a proper moment at a desk, and tell us which one feels most like Ovis.',
+   'Three directions are up and ready for you. They’re deliberately far apart — we’d rather find the right territory now than polish the wrong one later. Have a look when you get a proper moment at a desk, and tell us which one feels most like Ovis.',
    'blocked','dlv_concepts','published','u_chike', datetime('now','-9 days')),
   ('upd_2','prj_brand',
-   'Moodboard''s signed off — thank you. We''re starting on concepts today and expect to have three routes with you by the end of next week.',
+   'Moodboard’s signed off — thank you. We’re starting on concepts today and expect to have three routes with you by the end of next week.',
    'on_track', NULL,'published','u_chike', datetime('now','-17 days')),
   ('upd_3','prj_site',
-   'Pricing page notes are in and they''re good ones — the three-column layout was doing too much. We''re reworking it and we''ll have it back to you this week. Everything else is signed off and building.',
+   'Pricing page notes are in and they’re good ones — the three-column layout was doing too much. We’re reworking it and we’ll have it back to you this week. Everything else is signed off and building.',
    'on_track','dlv_pages','published','u_ada', datetime('now','-2 days'));
 
 INSERT OR REPLACE INTO update_reads (update_id, user_id, first_read_at, last_read_at) VALUES
@@ -205,7 +205,7 @@ INSERT OR REPLACE INTO tasks (id, project_id, deliverable_id, title, responsible
   ('t_7','prj_site', NULL,'Cross-browser pass','u_chike','todo', date('now','+11 days'), datetime('now','-1 days'),'u_ada');
 
 INSERT OR REPLACE INTO task_blockers (id, task_id, kind, blocked_by_user, client_action_id, note, created_by, created_at) VALUES
-  ('blk_1','t_1','client_action', NULL,'ca_1','Can''t refine until they choose','u_chike', datetime('now','-9 days')),
+  ('blk_1','t_1','client_action', NULL,'ca_1','Can’t refine until they choose','u_chike', datetime('now','-9 days')),
   ('blk_2','t_3','user','u_ada', NULL,'Waiting on the type licence decision','u_femi', datetime('now','-4 days')),
   ('blk_3','t_5','client_action', NULL,'ca_2','No team photos yet','u_femi', datetime('now','-3 days'));
 
@@ -225,7 +225,7 @@ INSERT OR REPLACE INTO checklist_items
    'checked', datetime('now','-1 days'),'u_femi', datetime('now','-1 days'), NULL, NULL, NULL),
   ('ci_4','cl_iconset',4,'Named per convention','kebab-case, category prefix.',1,'none',NULL,0,0,1,
    'open', datetime('now','-6 days'), NULL, NULL, NULL, NULL, NULL),
-  ('ci_5','cl_iconset',5,'Contrast checked','Against both surfaces. Self-certification isn''t enough here.',1,'text',NULL,1,0,1,
+  ('ci_5','cl_iconset',5,'Contrast checked','Against both surfaces. Self-certification isn’t enough here.',1,'text',NULL,1,0,1,
    'checked', datetime('now','-1 days'),'u_femi', datetime('now','-1 days'), NULL, NULL,
    'Checked at 4.6:1 minimum on both paper and ink.'),
   -- Present because the project carries the dark-mode tag.
@@ -233,7 +233,7 @@ INSERT OR REPLACE INTO checklist_items
    'open', datetime('now','-6 days'), NULL, NULL, NULL, NULL, NULL),
   ('ci_7','cl_iconset',7,'Source file archived to the brand library',NULL,1,'link','Figma',0,0,1,
    'open', datetime('now','-6 days'), NULL, NULL, NULL, NULL, NULL),
-  ('ci_8','cl_iconset',8,'Client sharing permissions verified','Nothing publishes with a link they can''t open.',1,'none',NULL,0,0,1,
+  ('ci_8','cl_iconset',8,'Client sharing permissions verified','Nothing publishes with a link they can’t open.',1,'none',NULL,0,0,1,
    'open', datetime('now','-6 days'), NULL, NULL, NULL, NULL, NULL);
 
 -- The signed attestations behind those ticks. Append-only.
