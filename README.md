@@ -55,6 +55,7 @@ Logo, plus at most one hairline accent per screen. Never cards, buttons, headers
 - **Light by default.** Dark is opt-in via the toggle and remembered; `prefers-color-scheme` is deliberately *not* consulted — the studio's work is presented on paper-white unless someone chooses otherwise.
 - High-stakes deliverables have no approve button on a phone — that's intentional, not a bug.
 - **No file storage.** Every artifact is a link. There is no upload path by design.
+- **Reachability and access are different questions.** A fetch can prove a URL resolves; it cannot prove a client can open a Figma or Drive link — those return 200 to anyone. So the gate needs a human attestation, recorded with who and when. Never merge the two into one tick.
 - **Typographic apostrophes** (`’`) in all user-facing copy.
 - **Type roles, not ad-hoc classes.** `.label` is uppercase mono for *naming a region* — never a sentence, never a date. `.meta` (sans, 14px) carries timestamps, rounds and statuses. Letterspaced uppercase micro-type is decoration; don't make people read it.
 - Nothing carrying content sits below 14px.

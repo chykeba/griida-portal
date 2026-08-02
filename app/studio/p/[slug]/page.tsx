@@ -6,6 +6,9 @@ import { Badge, Card, Label, Meta, Notice, StatusDot } from "@/components/primit
 import { PublishPanel } from "@/components/studio/publish-panel";
 import { ChecklistRow, type ChecklistItemView } from "@/components/studio/checklist";
 import { SendToClient } from "@/components/studio/send-to-client";
+import { ReviewLink, type ReviewLinkView } from "@/components/studio/review-link";
+import { reviewLinkFor } from "@/lib/db/link-writes";
+import { isDemoMode } from "@/lib/auth/dal";
 import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio, getStudioProject } from "@/lib/studio/data";
 import {
@@ -37,6 +40,33 @@ export default async function StudioProjectPage({
   const me = await getCurrentPerson();
   const freshness = publishFreshness(project);
   const draft = composeDraft(project);
+
+  // One query per deliverable, issued together — the review link and its
+  // access attestation, which the gate depends on.
+  const links = isDemoMode()
+    ? new Map<string, ReviewLinkView | null>()
+    : new Map(
+        await Promise.all(
+          project.deliverables.map(async (d) => {
+            const row = await reviewLinkFor(d.id);
+            const view: ReviewLinkView | null = row
+              ? {
+                  id: row.id,
+                  url: row.url,
+                  label: row.label,
+                  provider: row.provider,
+                  bestOnDesktop: row.best_on_desktop === 1,
+                  // Tri-state: null means never checked, which is not the same as
+                  // checked-and-failed. Collapsing it to false would hide that.
+                  clientAccessOk:
+                    row.client_access_ok === null ? null : row.client_access_ok === 1,
+                  health: row.health,
+                }
+              : null;
+            return [d.id, view] as const;
+          }),
+        ),
+      );
 
   return (
     <div className="flex min-h-full flex-col bg-paper-sunk">
@@ -95,6 +125,14 @@ export default async function StudioProjectPage({
                           </Badge>
                         )}
                       </div>
+
+                      {!isDemoMode() ? (
+                        <ReviewLink
+                          deliverableId={d.id}
+                          slug={project.slug}
+                          link={links.get(d.id) ?? null}
+                        />
+                      ) : null}
 
                       {gate.ok && d.status === "draft" ? (
                         <SendToClient

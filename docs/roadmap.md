@@ -114,6 +114,7 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Publish an update** from the project page and from standup — writes the update, bumps `last_published_at`, emits a client-visible activity event
 - [x] **Notification emails wired** — publishing an update and sending work for review both email the client, deep-linked straight to the item (§6b). Failures are logged, never fatal: a courtesy on top of a fact
 - [x] **The publish gate enforced at write time** — `sendToClient` re-derives it from the database, so a stale page can't push unfinished work at a client
+- [x] **Review links manageable from the UI** — attach/replace a link, automatic reachability check, and a separate human attestation that this client can open it. Replacing a link resets the attestation
 - [ ] `/studio/admin` — authoring SOP templates without writing SQL
 - [ ] Super-admin UI to *author* templates — they live in the database now, but still need SQL to change
 
