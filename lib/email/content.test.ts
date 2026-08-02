@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { magicLinkEmail, reviewReadyEmail } from "./content.ts";
+import { magicLinkEmail, reviewReadyEmail, updatePublishedEmail } from "./content.ts";
 
 const URL = "https://portal.griida.com/auth/verify?token=abc123&next=%2Fp%2Fwebsite";
 
@@ -69,6 +69,36 @@ test("user-supplied values are escaped into the HTML", () => {
   assert.ok(!html.includes("<script>"), "project name was not escaped");
   assert.ok(html.includes("&lt;script&gt;"));
   assert.ok(html.includes("Logo &amp; wordmark"), "ampersand in a name must be escaped");
+});
+
+test("the footer explains why THIS email arrived, not why any email might", () => {
+  const magic = magicLinkEmail(URL).html;
+  assert.match(magic, /someone asked for a sign-in link/);
+
+  const review = reviewReadyEmail({
+    firstName: "Tunde", projectName: "Brand Identity",
+    deliverableName: "Three logo directions", url: URL,
+  }).html;
+  // A review notification must not claim it was triggered by a sign-in request.
+  assert.ok(!/sign-in link/.test(review));
+  assert.match(review, /working with Griida on a project/);
+});
+
+test("an update email carries the actual update, in both parts", () => {
+  const body = "Pricing page is reworked and back with you.";
+  const mail = updatePublishedEmail({
+    firstName: "Tunde", projectName: "Website", body, url: URL,
+  });
+  assert.ok(mail.text.includes(body));
+  assert.ok(mail.html.includes(body));
+  assert.equal(mail.subject, "Website — an update");
+});
+
+test("a multi-line update keeps its line breaks in HTML", () => {
+  const mail = updatePublishedEmail({
+    firstName: "T", projectName: "P", body: "One.\nTwo.", url: URL,
+  });
+  assert.match(mail.html, /One\.<br>Two\./);
 });
 
 test("the review email leads with what it is, not with the studio", () => {

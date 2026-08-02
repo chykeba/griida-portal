@@ -1,7 +1,12 @@
 import "server-only";
 
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
-import { magicLinkEmail, reviewReadyEmail, type EmailBody } from "./content.ts";
+import {
+  magicLinkEmail,
+  reviewReadyEmail,
+  updatePublishedEmail,
+  type EmailBody,
+} from "./content.ts";
 
 /**
  * Email via Amazon SES.
@@ -107,6 +112,13 @@ async function send(to: string, body: EmailBody): Promise<void> {
 
 export async function sendMagicLink(to: string, url: string): Promise<void> {
   await send(to, magicLinkEmail(url));
+}
+
+export async function sendUpdate(
+  to: string,
+  params: { firstName: string; projectName: string; body: string; url: string },
+): Promise<void> {
+  await send(to, updatePublishedEmail(params));
 }
 
 export async function sendReviewReady(

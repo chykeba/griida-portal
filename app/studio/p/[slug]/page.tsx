@@ -5,6 +5,7 @@ import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/she
 import { Badge, Card, Label, Meta, Notice, StatusDot } from "@/components/primitives";
 import { PublishPanel } from "@/components/studio/publish-panel";
 import { ChecklistRow, type ChecklistItemView } from "@/components/studio/checklist";
+import { SendToClient } from "@/components/studio/send-to-client";
 import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio, getStudioProject } from "@/lib/studio/data";
 import {
@@ -94,6 +95,14 @@ export default async function StudioProjectPage({
                           </Badge>
                         )}
                       </div>
+
+                      {gate.ok && d.status === "draft" ? (
+                        <SendToClient
+                          deliverableId={d.id}
+                          slug={project.slug}
+                          ready
+                        />
+                      ) : null}
 
                       {!gate.ok ? (
                         <ul className="mt-3 space-y-1">

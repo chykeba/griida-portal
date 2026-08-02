@@ -220,6 +220,124 @@ export async function waive(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Sending work to the client — where the gate is finally enforced (§5b)       */
+/* -------------------------------------------------------------------------- */
+
+export interface PublishCheck {
+  ok: boolean;
+  reasons: string[];
+  hardBlocked: boolean;
+  projectId: string;
+  projectSlug: string;
+  projectName: string;
+  name: string;
+  round: number;
+  reviewUrl: string | null;
+}
+
+/**
+ * Re-derives the gate from the database at write time.
+ *
+ * `canPublish` in lib/studio/logic.ts computes the same thing for the UI, but a
+ * UI check is a courtesy. This is the one that decides, so a stale page or a
+ * hand-made request cannot push unfinished work at a client.
+ */
+export async function publishCheck(deliverableId: string): Promise<PublishCheck | null> {
+  const rows = await query<{
+    name: string; status: string; current_round: number; project_id: string;
+    project_slug: string; project_name: string; review_url: string | null;
+    client_access_ok: number | null;
+  }>(
+    `SELECT d.name, d.status, d.current_round, d.project_id,
+            p.slug AS project_slug, p.name AS project_name,
+            l.url AS review_url, l.client_access_ok
+       FROM deliverables d
+       JOIN projects p ON p.id = d.project_id
+       LEFT JOIN deliverable_versions v
+              ON v.deliverable_id = d.id AND v.round = d.current_round
+       LEFT JOIN links l ON l.id = v.review_link_id
+      WHERE d.id = ?1 LIMIT 1`,
+    [deliverableId],
+  );
+  const d = rows[0];
+  if (!d) return null;
+
+  const outstanding = await query<{ n: number; labels: string | null }>(
+    `SELECT count(*) AS n, group_concat(i.label, ', ') AS labels
+       FROM checklist_items i
+       JOIN checklists c ON c.id = i.checklist_id
+      WHERE c.deliverable_id = ?1
+        AND i.is_applicable = 1
+        AND i.is_required = 1
+        AND (i.state = 'open' OR (i.state = 'checked' AND i.requires_countersign = 1))`,
+    [deliverableId],
+  );
+
+  const reasons: string[] = [];
+  let hardBlocked = false;
+
+  // The one gate with no override: never show a client a link they can't open.
+  if (!d.review_url) {
+    reasons.push("There’s no review link on this round yet");
+    hardBlocked = true;
+  } else if (d.client_access_ok !== 1) {
+    reasons.push("The review link isn’t verified as viewable by this client");
+    hardBlocked = true;
+  }
+
+  const n = outstanding[0]?.n ?? 0;
+  if (n > 0) {
+    reasons.push(`${n} required checklist ${n === 1 ? "item" : "items"} outstanding: ${outstanding[0]?.labels ?? ""}`);
+  }
+
+  return {
+    ok: reasons.length === 0,
+    reasons,
+    hardBlocked,
+    projectId: d.project_id,
+    projectSlug: d.project_slug,
+    projectName: d.project_name,
+    name: d.name,
+    round: d.current_round,
+    reviewUrl: d.review_url,
+  };
+}
+
+/** Moves a deliverable to the client, if the gate allows it. */
+export async function sendToClient(
+  deliverableId: string,
+  actorId: string,
+): Promise<PublishCheck> {
+  const check = await publishCheck(deliverableId);
+  if (!check) throw new NotPermitted("That deliverable has gone.");
+  if (!check.ok) {
+    throw new NotPermitted(
+      check.hardBlocked
+        ? `Can’t send this yet. ${check.reasons[0]} — and that one can’t be waived, because a link they can’t open is the only failure they experience directly.`
+        : `Can’t send this yet. ${check.reasons.join("; ")}.`,
+    );
+  }
+
+  const now = new Date().toISOString();
+  await query(
+    `UPDATE deliverables SET status = 'in_review', state_changed_at = ?1
+      WHERE id = ?2 AND status IN ('draft','changes_requested')`,
+    [now, deliverableId],
+  );
+  await query(
+    `UPDATE deliverable_versions SET published_at = ?1, published_by = ?2
+      WHERE deliverable_id = ?3 AND round = ?4`,
+    [now, actorId, deliverableId, check.round],
+  );
+  await query(
+    `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility)
+     VALUES (?1, ?2, 'deliverable.in_review', 'deliverable', ?3, 'client')`,
+    [check.projectId, actorId, deliverableId],
+  );
+  return check;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Publishing (§5c)                                                            */
 /* -------------------------------------------------------------------------- */
 

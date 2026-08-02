@@ -24,7 +24,7 @@ const SOFT = "#3d4452";
 const FAINT = "#5a6170";
 const RULE = "#e5e1d9";
 
-function shell(inner: string): string {
+function shell(inner: string, why = "you're working with Griida on a project"): string {
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
 </head>
@@ -33,7 +33,7 @@ function shell(inner: string): string {
 ${inner}
 <hr style="border:0;border-top:1px solid ${RULE};margin:28px 0 14px;">
 <p style="margin:0;font-size:13px;line-height:1.5;color:${FAINT};">
-Griida — you're getting this because someone asked to sign in to your project portal.
+Griida — you're getting this because ${why}.
 </p>
 </div></body></html>`;
 }
@@ -69,7 +69,7 @@ export function magicLinkEmail(url: string): EmailBody {
 </p>
 <p style="margin:18px 0 0;font-size:14px;color:${SOFT};">
   If you didn't ask for this you can ignore it — nothing has changed on your account.
-</p>`);
+</p>`, "someone asked for a sign-in link to your project portal");
 
   return { subject: "Your sign-in link", text, html };
 }
@@ -108,6 +108,39 @@ export function reviewReadyEmail(params: {
 </p>`);
 
   return { subject: `Ready for you: ${deliverableName}`, text, html };
+}
+
+/** A published update. Leads with what changed, not with "we have news". */
+export function updatePublishedEmail(params: {
+  firstName: string;
+  projectName: string;
+  body: string;
+  url: string;
+}): EmailBody {
+  const { firstName, projectName, body, url } = params;
+  const text = [
+    `Hi ${firstName},`,
+    "",
+    `An update on ${projectName}:`,
+    "",
+    body,
+    "",
+    `See it in your portal: ${url}`,
+  ].join("\n");
+
+  const html = shell(`
+<p style="margin:0 0 18px;">Hi ${escapeHtml(firstName)},</p>
+<p style="margin:0 0 8px;font-size:14px;color:${FAINT};">An update on ${escapeHtml(projectName)}</p>
+<div style="margin:0 0 22px;padding-left:14px;border-left:2px solid ${RULE};">
+  ${escapeHtml(body).replace(/\n/g, "<br>")}
+</div>
+<p style="margin:0;">
+  <a href="${escapeAttr(url)}"
+     style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;
+            padding:12px 20px;border-radius:8px;font-weight:500;">Open your portal</a>
+</p>`);
+
+  return { subject: `${projectName} — an update`, text, html };
 }
 
 function escapeHtml(value: string): string {

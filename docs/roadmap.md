@@ -112,7 +112,9 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Checklist writes live** — tick (with evidence), countersign, waive, untick. Every change appends to `checklist_item_events`; the `state` column is only a projection
 - [x] **Countersign separation of duties enforced at write time**, not just in the UI — verified against live D1 that the person who checked an item cannot sign it off, super admin included
 - [x] **Publish an update** from the project page and from standup — writes the update, bumps `last_published_at`, emits a client-visible activity event
-- [ ] Notification emails on publish and on work-ready (the send layer exists; nothing calls it yet)
+- [x] **Notification emails wired** — publishing an update and sending work for review both email the client, deep-linked straight to the item (§6b). Failures are logged, never fatal: a courtesy on top of a fact
+- [x] **The publish gate enforced at write time** — `sendToClient` re-derives it from the database, so a stale page can't push unfinished work at a client
+- [ ] `/studio/admin` — authoring SOP templates without writing SQL
 - [ ] Super-admin UI to *author* templates — they live in the database now, but still need SQL to change
 
 **Make the actions real**
