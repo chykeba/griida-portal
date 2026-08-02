@@ -27,7 +27,9 @@ Deployed on Vercel. The Cloudflare Workers setup (`wrangler.jsonc`, `open-next.c
 | `components/` | Primitives and screen components |
 | `lib/copy.ts` | **The voice layer** — every client-facing string |
 | `lib/data/` | Read layer; swap `index.ts` to go live |
-| `supabase/migrations/` | Phase 1 schema + RLS publish boundary |
+| `db/migrations/` | Phase 1 schema (Cloudflare D1 / SQLite) |
+| `db/reference/` | The original Postgres schema — read it to understand the intended visibility model |
+| `lib/db/` | D1 access and the publish boundary |
 | `docs/` | Strategy, architecture, roadmap |
 
 ## Three decisions worth knowing before you edit anything
@@ -35,8 +37,10 @@ Deployed on Vercel. The Cloudflare Workers setup (`wrangler.jsonc`, `open-next.c
 **1. Every client-facing string comes from `lib/copy.ts`.**
 Not scattered through components. It produces spoken English — *"Due on the 17th of this month"*, *"This was due last Sunday — 3 days ago"* — deterministically, with no language model involved. The tests assert the *phrasing*, because the wording is the contract. If you hardcode a string in a component, you've broken the voice.
 
-**2. Visibility is enforced by Postgres, not by queries.**
-Internal tables have no client RLS policy at all — not a filtered one, none. Application code cannot leak what the database will not return. Never "fix" a missing row by adding a service-role query.
+**2. The publish boundary is enforced by code, and it is fragile by nature.**
+This ran on Postgres RLS, where internal tables had no client policy and the engine could not be talked out of it. It now runs on **D1, which has no row-level security**, so the boundary lives in `lib/db/tables.ts`: every table is classified client-readable or internal, all client SQL lives in `client-queries.ts`, and `boundary.test.ts` fails the build if client SQL touches an internal table or isn't scoped by the caller's user id.
+
+Adding a table forces a classification decision — the test fails otherwise. If a client needs a value that lives on an internal table, project it onto a client-readable one at write time. Never widen the boundary to make a query work.
 
 **3. The brand gradient belongs to the mark.**
 Logo, plus at most one hairline accent per screen. Never cards, buttons, headers or backgrounds. Colour otherwise appears only when something needs attention — "on track" is deliberately quiet. Most portals shout green; confidence is quieter than that.

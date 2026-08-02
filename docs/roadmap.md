@@ -86,12 +86,15 @@ Finishing what's started. This is the shortest path to something a real client c
 - [ ] **Put access protection on the preview URL before sharing it.** There is no auth yet, so a deployed URL is public to anyone holding it. The demo content is fictional, so nothing of a real client's leaks — but a public Griida-branded portal is a brand surface either way (Cloudflare Access, or a Worker-level basic-auth check, until magic-link lands)
 - [ ] Revisit edge caching in `open-next.config.ts` **before** connecting Supabase — client pages are per-user and must never be cached at the edge. RLS protects the database, not a CDN cache
 
-**Backend wiring** ← *next up*
-- [x] `studio_id` tenancy columns added to migration `0001` before first run (cheap now, a downtime migration later)
-- [ ] **Provision the Supabase project** *(your call — I can't do this unprompted)*
-- [ ] Run migration 0001; seed project types, milestone templates, deliverable types
-- [ ] Swap [`lib/data/index.ts`](../lib/data/index.ts) from demo to live — **the only file that changes**
-- [ ] Magic-link auth + session middleware (§6b — no passwords on phones)
+**Backend: now Cloudflare D1, not Supabase** ← *in progress*
+- [x] Schema ported to SQLite and **applied to D1** (`griida_client_portal`, 35 tables, 3 triggers)
+- [x] Append-only triggers on the audit logs, verified firing
+- [x] **Publish boundary rebuilt in code** — D1 has no RLS, so `lib/db/tables.ts` classifies every table, all client SQL lives in `client-queries.ts`, and `boundary.test.ts` fails the build on a violation. Mutation-tested: injecting a join onto `tasks` fails the suite
+- [x] D1 HTTP client with a runtime guard on client queries
+- [ ] **Add `CLOUDFLARE_API_TOKEN`** to Vercel env (needs D1 Edit permission) — the app falls back to demo data until then
+- [ ] Seed studio, project types, milestone templates, deliverable types
+- [ ] Magic-link auth + sessions — `users`, `auth_tokens`, `sessions` tables exist; no auth service on Cloudflare, so this is ours to build
+- [ ] Swap [`lib/data/index.ts`](../lib/data/index.ts) to read through `client-queries.ts` (needs a session to scope by)
 
 **Make the actions real**
 - [ ] Server actions for approve / request changes → `reviews` + `feedback_comments`
