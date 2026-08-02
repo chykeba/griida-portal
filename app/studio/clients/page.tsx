@@ -6,12 +6,17 @@ import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import { can } from "@/lib/studio/permissions";
 import { clientAccounts } from "@/lib/studio/store";
+import { isDemoMode } from "@/lib/auth/dal";
+import { listClientAccounts } from "@/lib/db/studio-writes";
 import { count, naturalDate } from "@/lib/copy";
 
 export default async function ClientsPage() {
   const me = await getCurrentPerson();
   await requireStudio("/studio/clients");
   const studio = await getStudio();
+  const accounts = isDemoMode()
+    ? clientAccounts.map((c) => ({ ...c, contact_name: c.contactName, contact_email: c.contactEmail, created_at: c.createdAt }))
+    : await listClientAccounts();
 
   return (
     <div className="flex min-h-full flex-col bg-paper-sunk">
@@ -34,13 +39,13 @@ export default async function ClientsPage() {
         />
 
         <ul className="stagger grid gap-3 lg:grid-cols-2">
-          {clientAccounts.map((c) => {
+          {accounts.map((c) => {
             const projects = studio.projects.filter((p) => p.clientName === c.name);
             return (
               <Card as="li" key={c.id} className="px-4 py-4">
                 <h2 className="font-display text-title leading-tight font-semibold">{c.name}</h2>
                 <Meta className="mt-1 block">
-                  {c.contactName} · {c.contactEmail}
+                  {c.contact_name} · {c.contact_email}
                 </Meta>
                 <Label className="mt-3 block">
                   {projects.length === 0 ? "No projects yet" : count(projects.length, "project")}
@@ -59,7 +64,7 @@ export default async function ClientsPage() {
                     ))}
                   </ul>
                 ) : null}
-                <Meta className="mt-3 block">Client since {naturalDate(c.createdAt)}</Meta>
+                <Meta className="mt-3 block">Client since {naturalDate(c.created_at)}</Meta>
               </Card>
             );
           })}

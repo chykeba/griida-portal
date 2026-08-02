@@ -7,6 +7,8 @@ import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import { can } from "@/lib/studio/permissions";
 import { clientAccounts } from "@/lib/studio/store";
 import { PROJECT_TYPES } from "@/lib/studio/templates";
+import { isDemoMode } from "@/lib/auth/dal";
+import { listClientAccounts, listProjectTypes } from "@/lib/db/studio-writes";
 import { count } from "@/lib/copy";
 
 const TAG_HINTS: Record<string, string> = {
@@ -20,6 +22,27 @@ export default async function NewProjectPage() {
   await requireStudio("/studio/projects/new");
   const studio = await getStudio();
   const allowed = can(me, "create_project");
+
+  // Options come from the database when there is one, so the form can never
+  // offer a client or a type that createProjectInD1 will then reject.
+  const demo = isDemoMode();
+  const accounts = demo
+    ? clientAccounts.map((c) => ({ id: c.id, name: c.name }))
+    : (await listClientAccounts()).map((c) => ({ id: c.id, name: c.name }));
+  const types = demo
+    ? PROJECT_TYPES.map((t) => ({
+        id: t.id,
+        name: t.name,
+        tags: t.tags,
+        milestones: t.milestones,
+        deliverables: t.deliverables.map((d) => ({
+          id: d.id,
+          name: d.name,
+          checklistItems: d.checklist?.items.length ?? 0,
+          version: d.checklist?.version ?? null,
+        })),
+      }))
+    : await listProjectTypes();
 
   return (
     <div className="flex min-h-full flex-col bg-paper-sunk">
@@ -49,8 +72,8 @@ export default async function NewProjectPage() {
                   required
                   hint="Don’t see them? Add the client first."
                 >
-                  <Select name="accountId" required defaultValue={clientAccounts[0]?.id}>
-                    {clientAccounts.map((c) => (
+                  <Select name="accountId" required defaultValue={accounts[0]?.id}>
+                    {accounts.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}
                       </option>
@@ -64,8 +87,8 @@ export default async function NewProjectPage() {
                   required
                   hint="This decides the stages, the deliverables and their SOP checklists."
                 >
-                  <Select name="projectTypeId" required defaultValue={PROJECT_TYPES[0].id}>
-                    {PROJECT_TYPES.map((t) => (
+                  <Select name="projectTypeId" required defaultValue={types[0]?.id}>
+                    {types.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
@@ -107,7 +130,7 @@ export default async function NewProjectPage() {
                     don’t apply — a checklist nobody needs gets rubber-stamped.
                   </Meta>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    {[...new Set(PROJECT_TYPES.flatMap((t) => t.tags))].map((tag) => (
+                    {[...new Set(types.flatMap((t) => t.tags))].map((tag) => (
                       <CheckboxRow
                         key={tag}
                         name="tags"
@@ -124,7 +147,7 @@ export default async function NewProjectPage() {
             {/* What you're about to get — so the SOP isn't a black box */}
             <aside className="space-y-5">
               <h2 className="label text-ink-soft">What each type creates</h2>
-              {PROJECT_TYPES.map((t) => (
+              {types.map((t) => (
                 <Card key={t.id} className="px-4 py-4">
                   <h3 className="font-display text-lead font-semibold">{t.name}</h3>
                   <Label className="mt-2 block">Stages</Label>
@@ -134,9 +157,9 @@ export default async function NewProjectPage() {
                     {t.deliverables.map((d) => (
                       <li key={d.id} className="text-small text-ink-soft">
                         {d.name}
-                        {d.checklist ? (
+                        {d.checklistItems > 0 ? (
                           <Meta className="ml-1.5">
-                            {count(d.checklist.items.length, "check")} · v{d.checklist.version}
+                            {count(d.checklistItems, "check")} · v{d.version}
                           </Meta>
                         ) : (
                           <Meta className="ml-1.5">no checklist yet</Meta>

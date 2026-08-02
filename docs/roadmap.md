@@ -107,7 +107,10 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Client writes live** — approve / request changes persist to D1: review decision, feedback comment, deliverable status, activity event
 - [x] **Billable rounds** — past the included rounds the client is warned *before* deciding, not blocked; a `revision_requests` row is raised for the studio to price
 - [x] **Clients see the checklist result** — which checks passed, never who ticked them, the evidence, or what was waived (column-level boundary guard)
+- [x] **Setup flows write to D1** — create project / client / invite. Creating a project instantiates milestones, deliverables and snapshotted checklists from the templates in the database
+- [x] **Full SOP template library in D1** (`db/seed/0002_templates.sql`) — 7 checklist templates, 46 items. `lib/studio/templates.ts` is now only the demo-mode fallback
 - [ ] Studio writes: checklist tick / countersign / waive, and publishing an update
+- [ ] Super-admin UI to *author* templates — they live in the database now, but still need SQL to change
 
 **Make the actions real**
 - [ ] Server actions for approve / request changes → `reviews` + `feedback_comments`
