@@ -45,7 +45,10 @@ This ran on Postgres RLS, where internal tables had no client policy and the eng
 
 Adding a table forces a classification decision — the test fails otherwise. If a client needs a value that lives on an internal table, project it onto a client-readable one at write time. Never widen the boundary to make a query work.
 
-**3. The brand gradient belongs to the mark.**
+**3. The publish gate is soft on checks and hard on the link.**
+Outstanding checklist items can be overridden with a reason, in one action, logged with who and why — a studio has to be able to ship, and a gate with no valve gets routed around by people inventing fake deliverables. A deliverable type with **no** standard sends freely; refusing until someone authors one would punish the studio for a gap in its own paperwork. An unverified client link is the one thing that cannot be overridden: they click, hit a permission wall, and the portal has done the opposite of its job.
+
+**4. The brand gradient belongs to the mark.**
 Logo, plus at most one hairline accent per screen. Never cards, buttons, headers or backgrounds. Colour otherwise appears only when something needs attention — "on track" is deliberately quiet. Most portals shout green; confidence is quieter than that.
 
 ## Conventions

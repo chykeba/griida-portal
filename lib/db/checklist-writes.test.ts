@@ -118,3 +118,32 @@ test("evidence requirements are enforced at write time", () => {
   assert.match(SOURCE, /needs a link to where the work is/);
   assert.match(SOURCE, /needs a note saying what you found/);
 });
+
+/* -------------------------------------------------------------------------- */
+/* The gate is soft on checks, hard on the link                                */
+/* -------------------------------------------------------------------------- */
+
+test("outstanding checks can be overridden with a reason; the link cannot", () => {
+  const fn = SOURCE.slice(SOURCE.indexOf("export async function sendToClient"));
+
+  // A missing/unverified link throws before the override is even considered.
+  const hardBlockIndex = fn.indexOf("check.hardBlocked");
+  const overrideIndex = fn.indexOf("override?.reason");
+  assert.ok(
+    hardBlockIndex > -1 && hardBlockIndex < overrideIndex,
+    "the link check must be evaluated before any override path",
+  );
+  assert.match(fn, /can’t be overridden/);
+
+  // Outstanding checks are passable with a reason, and it is recorded.
+  assert.match(fn, /You can send it anyway — say why/);
+  assert.match(fn, /deliverable\.sent_with_override/);
+  assert.match(fn, /outstanding: check\.reasons/);
+});
+
+test("a deliverable with no standard is never held up", () => {
+  // publishCheck only adds a checklist reason when count > 0, so a type with
+  // no template produces no reasons at all — silence is not an obstacle.
+  const fn = SOURCE.slice(SOURCE.indexOf("export async function publishCheck"));
+  assert.match(fn, /const n = outstanding\[0\]\?\.n \?\? 0;\s*\n\s*if \(n > 0\)/);
+});

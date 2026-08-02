@@ -141,6 +141,7 @@ export async function sendToClientAction(
 ): Promise<ItemState> {
   const slug = String(formData.get("slug") ?? "");
   const deliverableId = String(formData.get("deliverableId") ?? "");
+  const reason = String(formData.get("reason") ?? "");
 
   await requireStudio(`/studio/p/${slug}`);
   if (isDemoMode()) return { error: DEMO_NOTE };
@@ -151,7 +152,7 @@ export async function sendToClientAction(
   }
 
   try {
-    const check = await sendToClient(deliverableId, me.id);
+    const check = await sendToClient(deliverableId, me.id, reason ? { reason } : undefined);
     // Emailing is a courtesy on top of a fact. If it fails, the work has still
     // moved — notify swallows and logs rather than throwing.
     await notifyReviewReady({

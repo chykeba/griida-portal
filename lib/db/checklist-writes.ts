@@ -303,18 +303,55 @@ export async function publishCheck(deliverableId: string): Promise<PublishCheck 
   };
 }
 
-/** Moves a deliverable to the client, if the gate allows it. */
+/**
+ * Moves a deliverable to the client.
+ *
+ * The gate is deliberately soft in one direction and hard in the other (§5b):
+ *
+ *  - **Outstanding checklist items can be overridden** with a reason. A studio
+ *    has to be able to ship — a deadline moves, a check stops applying, the
+ *    client is in the room. A gate with no valve gets routed around by people
+ *    inventing fake deliverables, and then the data is worthless. So the
+ *    override exists, it is one action rather than waiving nine items, and it
+ *    is logged with who and why.
+ *
+ *  - **An unverified link cannot be overridden.** It is the only failure the
+ *    client experiences directly: they click, they hit a permission wall, and
+ *    the portal has done the opposite of its job.
+ *
+ *  - **A deliverable type with no standard sends freely.** Not every kind of
+ *    work needs a checklist, and refusing to ship until someone authors one
+ *    would punish the studio for a gap in its own paperwork.
+ */
 export async function sendToClient(
   deliverableId: string,
   actorId: string,
+  override?: { reason: string },
 ): Promise<PublishCheck> {
   const check = await publishCheck(deliverableId);
   if (!check) throw new NotPermitted("That deliverable has gone.");
-  if (!check.ok) {
+
+  if (check.hardBlocked) {
     throw new NotPermitted(
-      check.hardBlocked
-        ? `Can’t send this yet. ${check.reasons[0]} — and that one can’t be waived, because a link they can’t open is the only failure they experience directly.`
-        : `Can’t send this yet. ${check.reasons.join("; ")}.`,
+      `Can’t send this yet. ${check.reasons.find((r) => r.includes("link")) ?? check.reasons[0]} — ` +
+        `and that one can’t be overridden, because a link they can’t open is the only failure they experience directly.`,
+    );
+  }
+
+  if (!check.ok) {
+    const reason = override?.reason?.trim();
+    if (!reason) {
+      throw new NotPermitted(
+        `${check.reasons.join("; ")}. You can send it anyway — say why, and it goes in the record.`,
+      );
+    }
+    // The override is the decision worth keeping, not the tick that didn't
+    // happen. Logged with what was outstanding at the time.
+    await query(
+      `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility, payload)
+       VALUES (?1, ?2, 'deliverable.sent_with_override', 'deliverable', ?3, 'internal', ?4)`,
+      [check.projectId, actorId, deliverableId,
+       JSON.stringify({ reason, outstanding: check.reasons })],
     );
   }
 

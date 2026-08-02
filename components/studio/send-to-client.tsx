@@ -14,10 +14,14 @@ export function SendToClient({
   deliverableId,
   slug,
   ready,
+  outstanding = 0,
 }: {
   deliverableId: string;
   slug: string;
+  /** False only when the link is missing or unverified — the one hard block. */
   ready: boolean;
+  /** Required checks not yet settled. Sending anyway needs a reason. */
+  outstanding?: number;
 }) {
   const [state, action, pending] = useActionState<ItemState, FormData>(sendToClientAction, {
     error: null,
@@ -29,6 +33,21 @@ export function SendToClient({
     <form action={action} className="mt-3">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="deliverableId" value={deliverableId} />
+
+      {outstanding > 0 ? (
+        <div className="mb-2">
+          <p className="mb-1.5 text-small text-ink-soft">
+            {outstanding === 1 ? "One check isn’t" : `${outstanding} checks aren’t`} settled.
+            You can still send it — say why and it goes in the record.
+          </p>
+          <input
+            name="reason"
+            required
+            placeholder="Why this is going out early"
+            className="min-h-10 w-full rounded-md border border-rule-interactive bg-paper-raised px-3 text-small outline-none focus:border-ink"
+          />
+        </div>
+      ) : null}
       <button
         type="submit"
         disabled={pending}
@@ -39,7 +58,7 @@ export function SendToClient({
         ) : (
           <Send className="size-4" strokeWidth={1.75} aria-hidden />
         )}
-        {pending ? "Sending…" : "Send to client"}
+        {pending ? "Sending…" : outstanding > 0 ? "Send anyway" : "Send to client"}
       </button>
       {state.error ? (
         <p role="alert" className="animate-rise mt-2 flex items-start gap-1.5 text-small text-alert">

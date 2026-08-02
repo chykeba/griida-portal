@@ -134,11 +134,16 @@ export default async function StudioProjectPage({
                         />
                       ) : null}
 
-                      {gate.ok && d.status === "draft" ? (
+                      {(d.status === "draft" || d.status === "changes_requested") ? (
                         <SendToClient
                           deliverableId={d.id}
                           slug={project.slug}
-                          ready
+                          // Only the link blocks outright; outstanding checks
+                          // are an override, not a wall.
+                          ready={!gate.hardBlocked}
+                          outstanding={
+                            d.checklist ? checklistProgress(d.checklist).outstanding.length : 0
+                          }
                         />
                       ) : null}
 
