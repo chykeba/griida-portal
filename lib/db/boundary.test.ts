@@ -134,6 +134,29 @@ test("tablesReferenced finds tables across joins and aliases", () => {
   assert.deepEqual(found, ["client_accounts", "links", "projects"]);
 });
 
+test("the client data path never imports internal queries", () => {
+  // studio-queries.ts reaches everything by design. If a client-path module
+  // ever imports it, the whole boundary is one autocomplete away from being
+  // bypassed — so the import graph is asserted, not just the SQL.
+  const clientPath = [
+    "../data/index.ts",
+    "../data/live.ts",
+    "./client-queries.ts",
+  ];
+  for (const rel of clientPath) {
+    const file = path.join(import.meta.dirname, rel);
+    const source = fs.readFileSync(file, "utf8");
+    assert.ok(
+      !source.includes("studio-queries"),
+      `${rel} imports studio-queries — internal data must not be reachable from a client request`,
+    );
+    assert.ok(
+      !/from "\.\.\/studio\//.test(source),
+      `${rel} imports from lib/studio — the two lenses must not share a read path`,
+    );
+  }
+});
+
 test("the internal list actually covers the things clients must never see", () => {
   // Named explicitly so deleting one from INTERNAL_ONLY fails loudly rather
   // than silently widening the boundary.

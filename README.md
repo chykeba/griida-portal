@@ -30,7 +30,7 @@ Deployed on Vercel. The Cloudflare Workers setup (`wrangler.jsonc`, `open-next.c
 | `db/migrations/` | Phase 1 schema (Cloudflare D1 / SQLite) |
 | `db/seed/` | Demo data, idempotent, relative dates |
 | `db/reference/` | The original Postgres schema — read it to understand the intended visibility model |
-| `lib/db/` | D1 access and the publish boundary |
+| `lib/db/` | D1 access, the publish boundary, and the two query modules (client vs studio) |
 | `docs/` | Strategy, architecture, roadmap |
 
 ## Three decisions worth knowing before you edit anything

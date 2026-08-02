@@ -102,7 +102,8 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Amazon SES** wired (`@aws-sdk/client-sesv2`), text + HTML parts, 7 tests on the wording and escaping
 - [ ] Add `SES_REGION` / `SES_ACCESS_KEY_ID` / `SES_SECRET_ACCESS_KEY` to Vercel — and check whether the SES account is still in **sandbox**, which only sends to verified addresses
 - [x] Swapped [`lib/data/index.ts`](../lib/data/index.ts) — verified end to end with real sessions against live D1
-- [ ] Studio lens still reads fixtures (`lib/studio/data.ts`) — same treatment needed
+- [x] **Studio lens wired live** — `lib/studio/data.ts` reads D1 through `studio-queries.ts`; seven queries in one Promise.all pass, stitched in memory
+- [x] Import-graph guard: the client data path is asserted never to import internal queries
 - [ ] Writes: approve / request changes / checklist ticks still simulated
 
 **Make the actions real**
