@@ -17,6 +17,8 @@ const NAV = [
   { href: "/studio", label: "Today" },
   { href: "/studio/my-work", label: "My work" },
   { href: "/studio/standup", label: "Standup" },
+  { href: "/studio/clients", label: "Clients" },
+  { href: "/studio/team", label: "Team" },
 ];
 
 export function StudioHeader({ person, active }: { person: Person; active: string }) {

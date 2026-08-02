@@ -127,9 +127,13 @@ The studio works inside the product; client updates fall out of that work.
 - [x] Drafted client update — deterministic templating, no model (§6a)
 - [x] SOP checklist rendering: attestation, evidence links, countersign rules, publish gate
 - [x] 11 tests covering the gate, countersign separation of duties, and the draft composer
-- [ ] **Writes** — ticking, countersigning, waiving, task edits (all read-only today)
+- [x] **Setup flows** — create project from type, add client, invite team member, with server actions and permission checks
+- [x] **Permission model** — PM + super admin create projects and clients; super admin alone manages team and authors SOPs. Checked in the action, not just the UI
+- [x] **Project types + SOP template library** (3 types, 9 deliverable templates) with conditional items resolved at instantiation
+- [ ] **Writes on existing work** — ticking, countersigning, waiving, task edits (still read-only)
 - [ ] Append-only `checklist_item_events` log behind those writes
-- [ ] Super-admin template authoring UI (`/studio/admin`)
+- [ ] Super-admin template *authoring* UI — templates are currently defined in `lib/studio/templates.ts`, readable but not editable in-app
+- [ ] Real invitations — needs Supabase admin invite API; today an invited person appears immediately
 - [ ] Project closeout checklist gating DONE
 - [ ] Approvals audit trail, scope-change log, extra-revision request flow
 - [ ] Reply-by-email inbound parsing (§10.3)

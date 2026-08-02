@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, TriangleAlert } from "lucide-react";
+import { ArrowRight, Plus, TriangleAlert } from "lucide-react";
 import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/shell";
 import { Badge, Card, Label, Meta, StatusDot } from "@/components/primitives";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
@@ -11,6 +11,7 @@ import {
   personName,
   publishFreshness,
 } from "@/lib/studio/logic";
+import { can } from "@/lib/studio/permissions";
 import { count, healthCopy, naturalAge } from "@/lib/copy";
 
 export default async function StudioTodayPage() {
@@ -29,6 +30,17 @@ export default async function StudioTodayPage() {
         <StudioHeading
           title={`Morning, ${me.name}`}
           sub="Everything running, and anything about to go quiet on a client."
+          aside={
+            can(me, "create_project") ? (
+              <Link
+                href="/studio/projects/new"
+                className="pressable inline-flex min-h-11 items-center gap-1.5 rounded-md bg-ink px-4 font-medium text-paper-raised"
+              >
+                <Plus className="size-4" strokeWidth={2} aria-hidden />
+                New project
+              </Link>
+            ) : null
+          }
         />
 
         {/* The screen nobody builds and everybody needs (§5a). Placed first

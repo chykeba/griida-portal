@@ -53,6 +53,18 @@ Logo, plus at most one hairline accent per screen. Never cards, buttons, headers
 - Nothing carrying content sits below 14px.
 - Type: Newsreader (display) / Instrument Sans (UI) / JetBrains Mono (labels only).
 
+## Who can do what
+
+| | Member | Lead | PM | Super admin |
+|---|---|---|---|---|
+| Work tasks, tick own checklist items | ✓ | ✓ | ✓ | ✓ |
+| Countersign others' items | | ✓ | ✓ | ✓ |
+| Publish updates to clients | | ✓ | ✓ | ✓ |
+| Create projects and clients | | | ✓ | ✓ |
+| Manage team, author SOP templates | | | | ✓ |
+
+Defined once in `lib/studio/permissions.ts` and enforced in the server action, not just by hiding the button.
+
 ## Status
 
 See [docs/roadmap.md](docs/roadmap.md) for what's done and what's next.
