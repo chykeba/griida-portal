@@ -20,7 +20,7 @@ The **client-facing half of Phase 1 is built and verified.** A client can sign i
 | Phase 1 — deployed | ✅ Live on Vercel, auto-deploys from `main` |
 | Phase 1 — backend wiring | ✅ D1 live, auth working, both lenses reading real data |
 | Phase 1 — internal slice | ⬜ Not started |
-| Phase 2 — internal lens | 🟡 Studio UI built on demo data; writes not wired |
+| Phase 2 — internal lens | ✅ Built and writing to D1 |
 | Phase 3 — depth & learning loops | ⬜ Not started |
 
 **Verified at last commit:** `npm test` 13/13 · `npm run lint` clean · `npm run build` clean · all 4 routes render.
@@ -115,7 +115,7 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Notification emails wired** — publishing an update and sending work for review both email the client, deep-linked straight to the item (§6b). Failures are logged, never fatal: a courtesy on top of a fact
 - [x] **The publish gate enforced at write time** — `sendToClient` re-derives it from the database, so a stale page can't push unfinished work at a client
 - [x] **Review links manageable from the UI** — attach/replace a link, automatic reachability check, and a separate human attestation that this client can open it. Replacing a link resets the attestation
-- [ ] `/studio/admin` — authoring SOP templates without writing SQL
+- [x] **`/studio/admin` — SOP templates authored in-app**, super admin only. Published versions are immutable: editing opens a draft at the next version with items copied, publishing archives the previous one. Projects already running keep their own snapshot regardless
 - [ ] Super-admin UI to *author* templates — they live in the database now, but still need SQL to change
 
 **Make the actions real**
