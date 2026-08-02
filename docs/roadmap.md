@@ -18,7 +18,7 @@ The **client-facing half of Phase 1 is built and verified.** A client can sign i
 | Strategy & architecture | ✅ Complete |
 | Phase 1 — client lens | ✅ Built, running on demo data |
 | Phase 1 — deployed | ✅ Live on Vercel, auto-deploys from `main` |
-| Phase 1 — backend wiring | ⬜ Migration written, not provisioned |
+| Phase 1 — backend wiring | ✅ D1 live, auth working, both lenses reading real data |
 | Phase 1 — internal slice | ⬜ Not started |
 | Phase 2 — internal lens | 🟡 Studio UI built on demo data; writes not wired |
 | Phase 3 — depth & learning loops | ⬜ Not started |
@@ -92,7 +92,7 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Publish boundary rebuilt in code** — D1 has no RLS, so `lib/db/tables.ts` classifies every table, all client SQL lives in `client-queries.ts`, and `boundary.test.ts` fails the build on a violation. Mutation-tested: injecting a join onto `tasks` fails the suite
 - [x] D1 HTTP client with a runtime guard on client queries
 - [x] D1 credentials verified; **read path wired live** — `lib/data/index.ts` reads through `client-queries.ts`, scoped to the session user
-- [ ] **Add the three CLOUDFLARE_* vars to Vercel** so the deployment leaves demo mode (works locally today)
+- [x] Cloudflare vars added to Vercel; production is out of demo mode
 - [x] **Seeded** (`db/seed/0001_demo.sql`) — 6 users, 2 projects, 3 project types, 11 milestones, 5 deliverables, 7 tasks, 3 blockers, an 8-item SOP checklist with 4 signed attestations. Idempotent; dates are relative so the natural-language layer keeps working
 - [x] Super admin: **hellogriida@gmail.com**
 - [x] **Magic-link auth built** — 60-minute single-use links, 30-day absolute sessions, secrets SHA-256 hashed at rest, httpOnly/sameSite cookies
@@ -100,7 +100,7 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] All 8 studio pages and 3 client pages gated
 - [x] **Demo mode** — with no DB credentials the app serves fixtures and needs no login, so the public preview keeps working. Keyed off the *absence* of a database, so it cannot be on where there is real data
 - [x] **Amazon SES** wired (`@aws-sdk/client-sesv2`), text + HTML parts, 7 tests on the wording and escaping
-- [ ] Add `SES_REGION` / `SES_ACCESS_KEY_ID` / `SES_SECRET_ACCESS_KEY` to Vercel — and check whether the SES account is still in **sandbox**, which only sends to verified addresses
+- [x] SES configured in Vercel and **confirmed delivering** — the full loop works end to end in production: request link → email arrives → single-use token → session → scoped D1 data
 - [x] Swapped [`lib/data/index.ts`](../lib/data/index.ts) — verified end to end with real sessions against live D1
 - [x] **Studio lens wired live** — `lib/studio/data.ts` reads D1 through `studio-queries.ts`; seven queries in one Promise.all pass, stitched in memory
 - [x] Import-graph guard: the client data path is asserted never to import internal queries
