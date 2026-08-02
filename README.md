@@ -28,6 +28,7 @@ Deployed on Vercel. The Cloudflare Workers setup (`wrangler.jsonc`, `open-next.c
 | `lib/copy.ts` | **The voice layer** — every client-facing string |
 | `lib/data/` | Read layer; swap `index.ts` to go live |
 | `db/migrations/` | Phase 1 schema (Cloudflare D1 / SQLite) |
+| `db/seed/` | Demo data, idempotent, relative dates |
 | `db/reference/` | The original Postgres schema — read it to understand the intended visibility model |
 | `lib/db/` | D1 access and the publish boundary |
 | `docs/` | Strategy, architecture, roadmap |

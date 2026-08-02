@@ -92,7 +92,8 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Publish boundary rebuilt in code** — D1 has no RLS, so `lib/db/tables.ts` classifies every table, all client SQL lives in `client-queries.ts`, and `boundary.test.ts` fails the build on a violation. Mutation-tested: injecting a join onto `tasks` fails the suite
 - [x] D1 HTTP client with a runtime guard on client queries
 - [ ] **Add `CLOUDFLARE_API_TOKEN`** to Vercel env (needs D1 Edit permission) — the app falls back to demo data until then
-- [ ] Seed studio, project types, milestone templates, deliverable types
+- [x] **Seeded** (`db/seed/0001_demo.sql`) — 6 users, 2 projects, 3 project types, 11 milestones, 5 deliverables, 7 tasks, 3 blockers, an 8-item SOP checklist with 4 signed attestations. Idempotent; dates are relative so the natural-language layer keeps working
+- [x] Super admin: **hellogriida@gmail.com**
 - [ ] Magic-link auth + sessions — `users`, `auth_tokens`, `sessions` tables exist; no auth service on Cloudflare, so this is ours to build
 - [ ] Swap [`lib/data/index.ts`](../lib/data/index.ts) to read through `client-queries.ts` (needs a session to scope by)
 
