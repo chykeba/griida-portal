@@ -109,7 +109,10 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] **Clients see the checklist result** — which checks passed, never who ticked them, the evidence, or what was waived (column-level boundary guard)
 - [x] **Setup flows write to D1** — create project / client / invite. Creating a project instantiates milestones, deliverables and snapshotted checklists from the templates in the database
 - [x] **Full SOP template library in D1** (`db/seed/0002_templates.sql`) — 7 checklist templates, 46 items. `lib/studio/templates.ts` is now only the demo-mode fallback
-- [ ] Studio writes: checklist tick / countersign / waive, and publishing an update
+- [x] **Checklist writes live** — tick (with evidence), countersign, waive, untick. Every change appends to `checklist_item_events`; the `state` column is only a projection
+- [x] **Countersign separation of duties enforced at write time**, not just in the UI — verified against live D1 that the person who checked an item cannot sign it off, super admin included
+- [x] **Publish an update** from the project page and from standup — writes the update, bumps `last_published_at`, emits a client-visible activity event
+- [ ] Notification emails on publish and on work-ready (the send layer exists; nothing calls it yet)
 - [ ] Super-admin UI to *author* templates — they live in the database now, but still need SQL to change
 
 **Make the actions real**

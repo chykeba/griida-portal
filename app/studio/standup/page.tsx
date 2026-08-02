@@ -181,6 +181,8 @@ export default async function StandupPage({
                 <PublishPanel
                   draft={composeDraft(project)}
                   projectName={project.name}
+                  projectId={project.id}
+                  slug={project.slug}
                 />
               </Card>
               <Meta className="mt-2 block">

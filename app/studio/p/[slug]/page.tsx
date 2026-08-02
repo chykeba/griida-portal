@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, Check, Lock, ShieldCheck } from "lucide-react";
+import { ArrowUpRight, Check, Lock } from "lucide-react";
 import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/shell";
 import { Badge, Card, Label, Meta, Notice, StatusDot } from "@/components/primitives";
 import { PublishPanel } from "@/components/studio/publish-panel";
+import { ChecklistRow, type ChecklistItemView } from "@/components/studio/checklist";
 import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio, getStudioProject } from "@/lib/studio/data";
 import {
@@ -13,12 +14,12 @@ import {
   canTick,
   checklistProgress,
   composeDraft,
-  isSettled,
   openBlockers,
   personName,
   publishFreshness,
   taskStatusLabel,
 } from "@/lib/studio/logic";
+import { can } from "@/lib/studio/permissions";
 import { count, deadline, deliverableCopy, naturalAge } from "@/lib/copy";
 
 export default async function StudioProjectPage({
@@ -125,80 +126,34 @@ export default async function StudioProjectPage({
                             ) : null}
                           </div>
 
-                          <ul className="space-y-1.5">
+                          <ul>
                             {d.checklist.items.map((item) => {
-                              const settled = isSettled(item);
-                              const awaitingSign =
-                                item.state === "checked" && item.requiresCountersign;
+                              const blocked =
+                                item.checkedById === me.id
+                                  ? "You checked this one — someone else has to countersign it."
+                                  : me.role === "member"
+                                    ? "Waiting on a lead to countersign"
+                                    : null;
+                              const view: ChecklistItemView = {
+                                id: item.id,
+                                label: item.label,
+                                guidance: item.guidance,
+                                state: item.state,
+                                requiresCountersign: item.requiresCountersign,
+                                evidenceKind: item.evidenceKind,
+                                checkedByName: item.checkedById
+                                  ? `${personName(studio.people, item.checkedById)} · ${naturalAge(item.checkedAt!)}`
+                                  : null,
+                                checkedAt: item.checkedAt,
+                                evidenceUrl: item.evidenceUrl,
+                                evidenceText: item.evidenceText,
+                                canTick: canTick(d, me),
+                                canCountersign: canCountersign(item, me),
+                                canWaive: can(me, "waive_checklist_item"),
+                                countersignBlockedWhy: blocked,
+                              };
                               return (
-                                <li key={item.id} className="flex items-start gap-2.5">
-                                  <span
-                                    aria-hidden
-                                    className={[
-                                      "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-sm border",
-                                      settled
-                                        ? "border-approved bg-approved text-paper-raised"
-                                        : awaitingSign
-                                          ? "border-caution"
-                                          : "border-rule-interactive",
-                                    ].join(" ")}
-                                  >
-                                    {settled ? (
-                                      <Check className="size-3" strokeWidth={3} aria-hidden />
-                                    ) : null}
-                                  </span>
-
-                                  <span className="min-w-0">
-                                    <span
-                                      className={`text-small ${settled ? "text-ink-soft" : "font-medium"}`}
-                                    >
-                                      {item.label}
-                                    </span>
-                                    {item.requiresCountersign ? (
-                                      <ShieldCheck
-                                        className="ml-1.5 inline size-3.5 text-caution"
-                                        strokeWidth={2}
-                                        aria-label="Needs a second pair of eyes"
-                                      />
-                                    ) : null}
-
-                                    {item.guidance && !settled ? (
-                                      <span className="mt-0.5 block text-small text-ink-faint">
-                                        {item.guidance}
-                                      </span>
-                                    ) : null}
-
-                                    {/* The attestation: who, when, on what evidence */}
-                                    {item.checkedById ? (
-                                      <Meta className="mt-0.5 block">
-                                        {personName(studio.people, item.checkedById)} ·{" "}
-                                        {naturalAge(item.checkedAt!)}
-                                        {item.evidenceUrl ? (
-                                          <>
-                                            {" · "}
-                                            <a
-                                              href={item.evidenceUrl}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="underline decoration-rule-strong underline-offset-2 hover:decoration-ink"
-                                            >
-                                              evidence
-                                            </a>
-                                          </>
-                                        ) : null}
-                                        {item.evidenceText ? ` · “${item.evidenceText}”` : null}
-                                      </Meta>
-                                    ) : null}
-
-                                    {awaitingSign ? (
-                                      <Meta className="mt-0.5 block text-caution">
-                                        {canCountersign(item, me)
-                                          ? "Needs your countersign"
-                                          : `Needs a countersign from someone other than ${personName(studio.people, item.checkedById)}`}
-                                      </Meta>
-                                    ) : null}
-                                  </span>
-                                </li>
+                                <ChecklistRow key={item.id} item={view} slug={project.slug} />
                               );
                             })}
                           </ul>
@@ -272,7 +227,7 @@ export default async function StudioProjectPage({
                   </Notice>
                 ) : null}
                 <div className="mt-3">
-                  <PublishPanel draft={draft} projectName={project.name} />
+                  <PublishPanel draft={draft} projectName={project.name} projectId={project.id} slug={project.slug} />
                 </div>
               </Card>
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useState } from "react";
 import { Check, Loader2, RotateCcw, Send } from "lucide-react";
+import { publishAction, type ItemState } from "@/app/studio/p/[slug]/actions";
 import { Meta } from "../primitives";
 
 /**
@@ -15,22 +16,23 @@ import { Meta } from "../primitives";
 export function PublishPanel({
   draft,
   projectName,
+  projectId,
+  slug,
 }: {
   draft: string;
   projectName: string;
+  projectId: string;
+  slug: string;
 }) {
   const [body, setBody] = useState(draft);
-  const [phase, setPhase] = useState<"idle" | "sending" | "done">("idle");
+  const [state, action, pending] = useActionState<ItemState, FormData>(publishAction, {
+    error: null,
+  });
+  const [submitted, setSubmitted] = useState(false);
   const edited = body !== draft;
+  const done = submitted && !pending && !state.error;
 
-  async function publish() {
-    setPhase("sending");
-    // TODO: server action → updates (status: published) + notify (schema §3.9)
-    await new Promise((r) => setTimeout(r, 700));
-    setPhase("done");
-  }
-
-  if (phase === "done") {
+  if (done) {
     return (
       <div className="animate-settle rounded-md border border-approved/30 bg-approved/[0.05] px-3.5 py-3" role="status">
         <p className="flex items-center gap-2 text-small font-medium">
@@ -38,14 +40,17 @@ export function PublishPanel({
           Published to {projectName}
         </p>
         <Meta className="mt-1 block">
-          The client has been emailed a link straight to it.
+          It’s live on their portal now. (Notification emails aren’t wired yet —
+          they won’t know until they look.)
         </Meta>
       </div>
     );
   }
 
   return (
-    <div>
+    <form action={action} onSubmit={() => setSubmitted(true)}>
+      <input type="hidden" name="projectId" value={projectId} />
+      <input type="hidden" name="slug" value={slug} />
       <label htmlFor="draft" className="mb-1.5 block text-small font-medium">
         This week’s update
       </label>
@@ -55,6 +60,7 @@ export function PublishPanel({
 
       <textarea
         id="draft"
+        name="body"
         value={body}
         onChange={(e) => setBody(e.target.value)}
         rows={7}
@@ -63,17 +69,16 @@ export function PublishPanel({
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button
-          type="button"
-          onClick={publish}
-          disabled={phase === "sending" || body.trim().length === 0}
+          type="submit"
+          disabled={pending || body.trim().length === 0}
           className="pressable inline-flex min-h-10 items-center justify-center gap-2 rounded-md bg-ink px-4 text-small font-medium text-paper-raised disabled:opacity-50"
         >
-          {phase === "sending" ? (
+          {pending ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
           ) : (
             <Send className="size-4" strokeWidth={1.75} aria-hidden />
           )}
-          {phase === "sending" ? "Publishing…" : "Publish to client"}
+          {pending ? "Publishing…" : "Publish to client"}
         </button>
 
         {edited ? (
@@ -87,6 +92,12 @@ export function PublishPanel({
           </button>
         ) : null}
       </div>
-    </div>
+
+      {state.error ? (
+        <p role="alert" className="animate-rise mt-2 text-small text-alert">
+          {state.error}
+        </p>
+      ) : null}
+    </form>
   );
 }
