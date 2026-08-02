@@ -86,8 +86,9 @@ Finishing what's started. This is the shortest path to something a real client c
 - [ ] **Put access protection on the preview URL before sharing it.** There is no auth yet, so a deployed URL is public to anyone holding it. The demo content is fictional, so nothing of a real client's leaks — but a public Griida-branded portal is a brand surface either way (Cloudflare Access, or a Worker-level basic-auth check, until magic-link lands)
 - [ ] Revisit edge caching in `open-next.config.ts` **before** connecting Supabase — client pages are per-user and must never be cached at the edge. RLS protects the database, not a CDN cache
 
-**Backend wiring**
-- [ ] Provision the Supabase project *(your call — I haven't done this unprompted)*
+**Backend wiring** ← *next up*
+- [x] `studio_id` tenancy columns added to migration `0001` before first run (cheap now, a downtime migration later)
+- [ ] **Provision the Supabase project** *(your call — I can't do this unprompted)*
 - [ ] Run migration 0001; seed project types, milestone templates, deliverable types
 - [ ] Swap [`lib/data/index.ts`](../lib/data/index.ts) from demo to live — **the only file that changes**
 - [ ] Magic-link auth + session middleware (§6b — no passwords on phones)

@@ -826,7 +826,8 @@ Interface colour otherwise stays near-monochrome — `--griida-ink` on white, wi
 
 ## 12. Notes on things deliberately not built
 
-- **No multi-tenancy.** Adding `studio_id` to `client_accounts`, `project_types` and `profiles` — plus one predicate in the RLS helpers — would make this sellable to other studios. Nothing else in the schema resists it. Don't build it until someone asks to buy it.
+- **Multi-tenancy: column added, isolation not finished.** `studios` exists with Griida seeded, and `studio_id` sits on `profiles`, `client_accounts` and `project_types` with tenant predicates on those three. That is deliberate and partial — the column costs nothing on an empty database and is a downtime migration once a year of live projects exist, so the door is unlocked rather than opened.
+  **It is not a security boundary yet.** Downstream tables still grant any studio user access via the unscoped `studio_all` policy. Before a second studio is onboarded, every one of those policies needs a tenant predicate. Treat a second row in `studios` as a release blocker until that work is done — the migration carries the same warning inline.
 - **No realtime.** Standup is a meeting where people are already talking; a stale-by-30-seconds view is fine.
 - **No soft-delete framework.** `archived` statuses cover the real cases; the event logs are already immutable.
 - **No file storage.** Not an omission — a strategy commitment (§3c).

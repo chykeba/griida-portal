@@ -22,10 +22,30 @@ create type review_decision    as enum ('pending', 'approved', 'changes_requeste
 create type client_action_status as enum ('open', 'submitted', 'accepted');
 create type visibility         as enum ('internal', 'client');
 
+-- ---------- tenancy ----------------------------------------------------------
+-- Griida is the only studio today. This exists because adding a tenant column
+-- to an empty database costs nothing, and retrofitting one onto a year of live
+-- projects is a migration with downtime and a chance of cross-tenant leakage.
+-- The door is left unlocked, not opened: nothing in the app reads studio_id
+-- yet, and full tenant isolation is finished only if the product is ever sold.
+create table studios (
+  id         uuid primary key default gen_random_uuid(),
+  name       text not null,
+  slug       text not null unique,
+  created_at timestamptz not null default now()
+);
+
+insert into studios (id, name, slug)
+values ('00000000-0000-0000-0000-000000000001', 'Griida', 'griida');
+
 -- ---------- identity ---------------------------------------------------------
 create table profiles (
   id          uuid primary key references auth.users on delete cascade,
   kind        user_kind not null,
+  -- Set for studio staff (their employer). Null for client users, who reach a
+  -- studio through account_members instead — so one client contact is never
+  -- forced into a second login to work with a second studio.
+  studio_id   uuid references studios on delete restrict,
   studio_role studio_role,
   full_name   text not null,
   first_name  text,                       -- used for "Hello Tunde" (voice layer)
@@ -33,16 +53,24 @@ create table profiles (
   is_active   boolean not null default true,
   created_at  timestamptz not null default now(),
   constraint studio_users_have_a_role
-    check ((kind = 'studio') = (studio_role is not null))
+    check ((kind = 'studio') = (studio_role is not null)),
+  constraint studio_users_belong_to_a_studio
+    check ((kind = 'studio') = (studio_id is not null))
 );
 
 create table client_accounts (
   id         uuid primary key default gen_random_uuid(),
+  studio_id  uuid not null references studios on delete restrict
+             default '00000000-0000-0000-0000-000000000001',
   name       text not null,
-  slug       text not null unique,
+  slug       text not null,
   status     text not null default 'active',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Slugs are unique per studio, not globally: two studios may both have a
+  -- client called "Northwind".
+  unique (studio_id, slug)
 );
+create index client_accounts_by_studio on client_accounts (studio_id);
 
 create table account_members (
   account_id uuid not null references client_accounts on delete cascade,
@@ -93,9 +121,13 @@ create table brand_library_items (
 -- ---------- taxonomy ---------------------------------------------------------
 create table project_types (
   id        uuid primary key default gen_random_uuid(),
+  -- SOP templates are studio IP. They never cross a tenant boundary.
+  studio_id uuid not null references studios on delete restrict
+            default '00000000-0000-0000-0000-000000000001',
   name      text not null,
-  slug      text not null unique,
-  is_active boolean not null default true
+  slug      text not null,
+  is_active boolean not null default true,
+  unique (studio_id, slug)
 );
 
 create table milestone_templates (
@@ -291,6 +323,15 @@ create table project_documents (
 -- RLS
 -- =============================================================================
 
+/**
+ * The studio the current user works for. Null for client users.
+ * Used by the tenant predicates below; harmless while there is only one studio.
+ */
+create or replace function current_studio_id() returns uuid
+language sql stable security definer set search_path = public as $$
+  select studio_id from profiles where id = (select auth.uid());
+$$;
+
 create or replace function is_studio() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
@@ -332,6 +373,35 @@ begin
       'create policy studio_all on %I for all to authenticated using (is_studio()) with check (is_studio())', t);
   end loop;
 end $$;
+
+alter table studios enable row level security;
+create policy studio_read_own on studios for select to authenticated
+  using (id = current_studio_id());
+
+-- Tenant predicates on the three roots. Everything else reaches a studio
+-- through these by foreign key, so scoping here is what makes the rest
+-- scopeable later without touching data.
+--
+-- ⚠ THIS IS NOT YET A SECURITY BOUNDARY. Downstream tables (projects,
+-- deliverables, tasks, checklists…) still grant any studio user access via the
+-- unscoped `studio_all` policy above. With one studio that is correct and
+-- simple. Before a second studio is ever onboarded, every one of those policies
+-- must gain a tenant predicate and this warning must be deleted. Treat a second
+-- row in `studios` as a release blocker until then.
+drop policy studio_all on client_accounts;
+create policy studio_all on client_accounts for all to authenticated
+  using (is_studio() and studio_id = current_studio_id())
+  with check (is_studio() and studio_id = current_studio_id());
+
+drop policy studio_all on project_types;
+create policy studio_all on project_types for all to authenticated
+  using (is_studio() and studio_id = current_studio_id())
+  with check (is_studio() and studio_id = current_studio_id());
+
+drop policy studio_all on profiles;
+create policy studio_all on profiles for all to authenticated
+  using (is_studio() and (studio_id is null or studio_id = current_studio_id()))
+  with check (is_studio());
 
 -- ---- client-readable surface (§3b: timeline, updates, review action) --------
 
