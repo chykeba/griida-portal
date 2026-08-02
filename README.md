@@ -39,6 +39,8 @@ Deployed on Vercel. The Cloudflare Workers setup (`wrangler.jsonc`, `open-next.c
 Not scattered through components. It produces spoken English — *"Due on the 17th of this month"*, *"This was due last Sunday — 3 days ago"* — deterministically, with no language model involved. The tests assert the *phrasing*, because the wording is the contract. If you hardcode a string in a component, you've broken the voice.
 
 **2. The publish boundary is enforced by code, and it is fragile by nature.**
+It now works at **column** level too: `checklists`/`checklist_items` are client-readable, but `FORBIDDEN_CLIENT_COLUMNS` keeps `checked_by`, evidence and waiver reasons internal. Clients see which checks passed, not who signed them off.
+
 This ran on Postgres RLS, where internal tables had no client policy and the engine could not be talked out of it. It now runs on **D1, which has no row-level security**, so the boundary lives in `lib/db/tables.ts`: every table is classified client-readable or internal, all client SQL lives in `client-queries.ts`, and `boundary.test.ts` fails the build if client SQL touches an internal table or isn't scoped by the caller's user id.
 
 Adding a table forces a classification decision — the test fails otherwise. If a client needs a value that lives on an internal table, project it onto a client-readable one at write time. Never widen the boundary to make a query work.

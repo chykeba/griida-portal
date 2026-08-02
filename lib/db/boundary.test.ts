@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   CLIENT_READABLE,
+  FORBIDDEN_CLIENT_COLUMNS,
   INTERNAL_ONLY,
   allClassifiedTables,
   assertClientSafe,
@@ -101,8 +102,12 @@ test("assertClientSafe rejects internal tables at runtime", () => {
     /boundary violation/i,
   );
   assert.throws(
-    () => assertClientSafe("SELECT c.id FROM checklists c JOIN checklist_items i ON i.checklist_id = c.id"),
-    /checklist_items/,
+    () => assertClientSafe("SELECT * FROM checklist_item_events"),
+    /checklist_item_events/,
+  );
+  assert.throws(
+    () => assertClientSafe("SELECT * FROM revision_requests"),
+    /revision_requests/,
   );
   assert.throws(
     () => assertClientSafe("SELECT * FROM activity_events"),
@@ -134,6 +139,25 @@ test("tablesReferenced finds tables across joins and aliases", () => {
   assert.deepEqual(found, ["client_accounts", "links", "projects"]);
 });
 
+test("client SQL never selects an internal-accountability column", () => {
+  // checklists/checklist_items are client-readable at COLUMN level only. The
+  // client sees which checks passed; who ticked them, the evidence and the
+  // waiver reasons stay internal. Table-level classification can't express
+  // that, so the columns are asserted directly.
+  const source = fs.readFileSync(CLIENT_QUERIES, "utf8");
+  const statements = [...source.matchAll(/`([^`]*SELECT[^`]*)`/gi)].map((m) => m[1]);
+
+  for (const sql of statements) {
+    for (const column of FORBIDDEN_CLIENT_COLUMNS) {
+      assert.ok(
+        !new RegExp(`\\b${column}\\b`).test(sql),
+        `Client SQL selects "${column}", which is internal accountability, not ` +
+          `a delivery standard:\n${sql.trim().slice(0, 180)}`,
+      );
+    }
+  }
+});
+
 test("the client data path never imports internal queries", () => {
   // studio-queries.ts reaches everything by design. If a client-path module
   // ever imports it, the whole boundary is one autocomplete away from being
@@ -160,11 +184,15 @@ test("the client data path never imports internal queries", () => {
 test("the internal list actually covers the things clients must never see", () => {
   // Named explicitly so deleting one from INTERNAL_ONLY fails loudly rather
   // than silently widening the boundary.
+  // NOTE: `checklists` and `checklist_items` were on this list until the
+  // studio decided clients should see which checks a deliverable passed. They
+  // are now client-readable at COLUMN level, guarded by
+  // FORBIDDEN_CLIENT_COLUMNS above. That was a deliberate product decision,
+  // not a test relaxed to make a build pass — the event log, which carries the
+  // attestations, is still absolutely internal.
   for (const table of [
     "tasks",
     "task_blockers",
-    "checklists",
-    "checklist_items",
     "checklist_item_events",
     "activity_events",
     "update_reads",

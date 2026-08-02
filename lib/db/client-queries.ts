@@ -235,3 +235,36 @@ export async function brandLibraryForUser(userId: string) {
     "brandLibraryForUser",
   );
 }
+
+export interface PassedCheckRow {
+  id: string;
+  label: string;
+  position: number;
+}
+
+/**
+ * The delivery standard a piece of work passed — what we checked before
+ * sending it.
+ *
+ * Only settled items, and only the label. Deliberately selects none of
+ * FORBIDDEN_CLIENT_COLUMNS: the client sees the standard, not who signed it
+ * off, on what evidence, or what was waived. A waived item simply isn\'t
+ * listed — we make no claim about a check we didn\'t perform.
+ */
+export async function passedChecksForUser(userId: string, deliverableId: string) {
+  return queryAsClient<PassedCheckRow>(
+    `SELECT i.id, i.label, i.position
+       FROM checklist_items i
+       JOIN checklists c ON c.id = i.checklist_id
+       JOIN deliverables d ON d.id = c.deliverable_id
+       JOIN project_client_roles r ON r.project_id = d.project_id
+      WHERE r.user_id = ?1
+        AND c.deliverable_id = ?2
+        AND d.status != 'draft'
+        AND i.is_applicable = 1
+        AND i.state IN ('checked','countersigned')
+      ORDER BY i.position`,
+    [userId, deliverableId],
+    "passedChecksForUser",
+  );
+}

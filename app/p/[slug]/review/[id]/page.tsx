@@ -2,8 +2,10 @@ import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { AppHeader, Page } from "@/components/shell";
 import { ReviewForm } from "@/components/review-form";
-import { Label, Notice, SectionHeading } from "@/components/primitives";
-import { requireClientView } from "@/lib/auth/dal";
+import { Card, Label, Notice, SectionHeading } from "@/components/primitives";
+import { Check } from "lucide-react";
+import { requireClientView, isDemoMode } from "@/lib/auth/dal";
+import { passedChecksForUser } from "@/lib/db/client-queries";
 import { getDeliverable, getWorkspace } from "@/lib/data";
 import { errors, naturalAge, roundsCopy } from "@/lib/copy";
 
@@ -13,7 +15,7 @@ export default async function ReviewPage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
-  await requireClientView(`/p/${slug}/review/${id}`);
+  const user = await requireClientView(`/p/${slug}/review/${id}`);
   const found = await getDeliverable(slug, id);
   if (!found) notFound();
 
@@ -21,6 +23,16 @@ export default async function ReviewPage({
   const ws = await getWorkspace();
   const rounds = roundsCopy(deliverable.round, deliverable.roundsIncluded);
   const link = deliverable.reviewLink;
+
+  // Requesting changes on this round produces the next one. If that exceeds
+  // the agreement, say so before they decide rather than after (§5).
+  const nextRoundBillable = deliverable.round + 1 > deliverable.roundsIncluded;
+
+  // What we checked before sending it. Labels only — who ticked them, on what
+  // evidence, and anything waived stays internal.
+  const passedChecks = isDemoMode()
+    ? []
+    : await passedChecksForUser(user.id, deliverable.id);
 
   return (
     <>
@@ -85,12 +97,42 @@ export default async function ReviewPage({
           </Notice>
         </section>
 
+        {/* --- What we checked before sending it -------------------------
+                The outcome, not the workings: which checks passed. Never who
+                ticked them, the evidence behind it, or what was waived. --- */}
+        {passedChecks.length > 0 ? (
+          <section className="mb-8">
+            <SectionHeading>Before we sent this</SectionHeading>
+            <Card className="px-4 py-4">
+              <p className="text-small leading-relaxed text-ink-soft">
+                Every piece of work goes through a standard before it reaches
+                you. Here’s what we checked on this one.
+              </p>
+              <ul className="mt-3 space-y-1.5">
+                {passedChecks.map((check) => (
+                  <li key={check.id} className="flex items-start gap-2.5 text-small">
+                    <Check
+                      className="mt-0.5 size-4 shrink-0 text-approved"
+                      strokeWidth={2.5}
+                      aria-hidden
+                    />
+                    {check.label}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          </section>
+        ) : null}
+
         {/* --- The decision --------------------------------------------- */}
         <section className="pb-8">
           <SectionHeading>Over to you</SectionHeading>
           <ReviewForm
             deliverableName={deliverable.name}
             requiresConsideredReview={deliverable.requiresConsideredReview}
+            deliverableId={deliverable.id}
+            slug={project.slug}
+            nextRoundBillable={nextRoundBillable}
           />
         </section>
       </Page>

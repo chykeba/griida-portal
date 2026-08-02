@@ -104,7 +104,10 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] Swapped [`lib/data/index.ts`](../lib/data/index.ts) — verified end to end with real sessions against live D1
 - [x] **Studio lens wired live** — `lib/studio/data.ts` reads D1 through `studio-queries.ts`; seven queries in one Promise.all pass, stitched in memory
 - [x] Import-graph guard: the client data path is asserted never to import internal queries
-- [ ] Writes: approve / request changes / checklist ticks still simulated
+- [x] **Client writes live** — approve / request changes persist to D1: review decision, feedback comment, deliverable status, activity event
+- [x] **Billable rounds** — past the included rounds the client is warned *before* deciding, not blocked; a `revision_requests` row is raised for the studio to price
+- [x] **Clients see the checklist result** — which checks passed, never who ticked them, the evidence, or what was waived (column-level boundary guard)
+- [ ] Studio writes: checklist tick / countersign / waive, and publishing an update
 
 **Make the actions real**
 - [ ] Server actions for approve / request changes → `reviews` + `feedback_comments`

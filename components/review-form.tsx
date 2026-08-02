@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useId } from "react";
+import { useActionState, useId, useRef, useState } from "react";
 import { Check, Loader2, Monitor, Send } from "lucide-react";
-import { errors } from "@/lib/copy";
+import { decide, type ReviewState } from "@/app/p/[slug]/review/[id]/actions";
 import { cn } from "@/lib/utils";
 import { Notice } from "./primitives";
 
@@ -22,32 +22,31 @@ type Phase = "idle" | "sending" | "done" | "failed";
 export function ReviewForm({
   deliverableName,
   requiresConsideredReview,
+  deliverableId,
+  slug,
+  nextRoundBillable,
 }: {
   deliverableName: string;
   requiresConsideredReview: boolean;
+  deliverableId: string;
+  slug: string;
+  /** Warned up front, before they commit to it (§5). */
+  nextRoundBillable: boolean;
 }) {
   const [notes, setNotes] = useState("");
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [decision, setDecision] = useState<Decision | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [savedForDesktop, setSavedForDesktop] = useState(false);
   const notesRef = useRef<HTMLTextAreaElement>(null);
   const notesId = useId();
 
-  async function submit(next: Decision) {
-    if (next === "changes" && notes.trim().length === 0) {
-      setError(errors.emptyFeedback.body);
-      notesRef.current?.focus();
-      return;
-    }
-    setError(null);
-    setDecision(next);
-    setPhase("sending");
+  const [state, formAction, pending] = useActionState<ReviewState, FormData>(decide, {
+    done: null,
+    error: null,
+  });
 
-    // TODO: server action → reviews + feedback_comments (schema §3.9)
-    await new Promise((r) => setTimeout(r, 700));
-    setPhase("done");
-  }
+  const phase: Phase = state.done ? "done" : pending ? "sending" : "idle";
+  const decision: Decision | null =
+    state.done === "approved" ? "approve" : state.done === "changes" ? "changes" : null;
+  const error = state.error;
 
   if (phase === "done") {
     return (
@@ -67,14 +66,23 @@ export function ReviewForm({
             ? `We’ve logged your sign-off on ${deliverableName}. Nothing more needed from you here.`
             : "Your notes are with the team. We’ll come back to you once we’ve made the changes — usually within a couple of days."}
         </p>
+        {state.billable ? (
+          <p className="mx-auto mt-3 max-w-[42ch] border-t border-approved/25 pt-3 text-small leading-relaxed text-ink-soft">
+            This round goes past the {""}
+            <span className="font-medium text-ink">rounds included in your agreement</span>, so
+            we’ll price it and send it over before we start. Nothing begins until you’ve said yes.
+          </p>
+        ) : null}
       </div>
     );
   }
 
-  const sending = phase === "sending";
+  const sending = pending;
 
   return (
-    <div className="space-y-4">
+    <form action={formAction} className="space-y-4">
+      <input type="hidden" name="deliverableId" value={deliverableId} />
+      <input type="hidden" name="slug" value={slug} />
       {requiresConsideredReview ? (
         <div className="md:hidden">
           <Notice tone="caution" title="Worth opening this one on a computer">
@@ -83,6 +91,14 @@ export function ReviewForm({
             you’ve seen it properly.
           </Notice>
         </div>
+      ) : null}
+
+      {nextRoundBillable ? (
+        <Notice tone="caution" title="The next round of changes is billable">
+          Your agreement covers a set number of rounds and you’ve used them. You
+          can still ask for changes — we’ll price them and send that over before
+          anyone starts, so nothing happens without your say-so.
+        </Notice>
       ) : null}
 
       <div>
@@ -97,10 +113,8 @@ export function ReviewForm({
           id={notesId}
           ref={notesRef}
           value={notes}
-          onChange={(e) => {
-            setNotes(e.target.value);
-            if (error) setError(null);
-          }}
+          name="notes"
+          onChange={(e) => setNotes(e.target.value)}
           rows={5}
           placeholder="What’s working, what isn’t, and anything you’d like changed…"
           aria-invalid={error ? true : undefined}
@@ -126,8 +140,9 @@ export function ReviewForm({
       {/* Primary actions, bottom third, thumb-reachable (§6b) */}
       <div className="flex flex-col gap-2.5">
         <button
-          type="button"
-          onClick={() => submit("approve")}
+          type="submit"
+          name="decision"
+          value="approve"
           disabled={sending}
           className={cn(
             "pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-md",
@@ -165,8 +180,9 @@ export function ReviewForm({
         ) : null}
 
         <button
-          type="button"
-          onClick={() => submit("changes")}
+          type="submit"
+          name="decision"
+          value="changes"
           disabled={sending}
           className="pressable inline-flex min-h-12 items-center justify-center gap-2 rounded-md border border-rule-interactive px-5 text-base font-medium disabled:opacity-50"
         >
@@ -184,6 +200,6 @@ export function ReviewForm({
           We’ve emailed you a link that drops you straight back here.
         </p>
       ) : null}
-    </div>
+    </form>
   );
 }

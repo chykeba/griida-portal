@@ -40,6 +40,11 @@ export const CLIENT_READABLE = [
   "decisions",
   "project_documents",
   "notifications",
+  // Readable at COLUMN level only — see FORBIDDEN_CLIENT_COLUMNS below. The
+  // client is shown which checks passed, never who ticked them, on what
+  // evidence, or what was waived.
+  "checklists",
+  "checklist_items",
 ] as const;
 
 /**
@@ -55,8 +60,6 @@ export const INTERNAL_ONLY = [
   "deliverable_types",
   "checklist_templates",
   "checklist_template_items",
-  "checklists",
-  "checklist_items",
   "checklist_item_events",
   "project_team",
   "tasks",
@@ -67,6 +70,24 @@ export const INTERNAL_ONLY = [
 ] as const;
 
 export type ClientReadableTable = (typeof CLIENT_READABLE)[number];
+
+/**
+ * Columns a client query may never select, even on a client-readable table.
+ *
+ * `checklists` and `checklist_items` carry two different things: a delivery
+ * standard the client is entitled to see, and an internal accountability
+ * record they are not. Table-level classification can't express that, so the
+ * columns are named here and `boundary.test.ts` enforces it.
+ */
+export const FORBIDDEN_CLIENT_COLUMNS = [
+  "checked_by",
+  "checked_at",
+  "countersigned_by",
+  "evidence_link_id",
+  "evidence_text",
+  "waived_reason",
+  "source_template_id",
+] as const;
 
 const CLIENT_SET: ReadonlySet<string> = new Set(CLIENT_READABLE);
 const INTERNAL_SET: ReadonlySet<string> = new Set(INTERNAL_ONLY);
