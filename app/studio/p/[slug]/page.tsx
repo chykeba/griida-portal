@@ -4,6 +4,7 @@ import { ArrowUpRight, Check, Lock, ShieldCheck } from "lucide-react";
 import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/shell";
 import { Badge, Card, Label, Meta, Notice, StatusDot } from "@/components/primitives";
 import { PublishPanel } from "@/components/studio/publish-panel";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio, getStudioProject } from "@/lib/studio/data";
 import {
   blockerSentence,
@@ -26,6 +27,7 @@ export default async function StudioProjectPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  await requireStudio(`/studio/p/${slug}`);
   const project = await getStudioProject(slug);
   if (!project) notFound();
 

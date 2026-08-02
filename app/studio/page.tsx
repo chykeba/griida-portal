@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Plus, TriangleAlert } from "lucide-react";
 import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/shell";
 import { Badge, Card, Label, Meta, StatusDot } from "@/components/primitives";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import {
   blockingOthers,
@@ -15,6 +16,7 @@ import { can } from "@/lib/studio/permissions";
 import { count, healthCopy, naturalAge } from "@/lib/copy";
 
 export default async function StudioTodayPage() {
+  await requireStudio("/studio");
   const studio = await getStudio();
   const me = await getCurrentPerson();
   const iAmBlocking = blockingOthers(studio, me.id);

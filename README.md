@@ -58,6 +58,14 @@ Logo, plus at most one hairline accent per screen. Never cards, buttons, headers
 - Nothing carrying content sits below 14px.
 - Type: Newsreader (display) / Instrument Sans (UI) / JetBrains Mono (labels only).
 
+## Auth
+
+Magic links only — no passwords anywhere (§6b). Links last 60 minutes and work once; sessions last 30 days with no sliding renewal. Tokens and session ids are SHA-256 hashed before storage, so a database leak yields nothing presentable.
+
+The real authorisation check lives in `lib/auth/dal.ts`, next to the data. `proxy.ts` (Next 16 renamed Middleware to Proxy) only does optimistic cookie-presence redirects — it is **not** the security boundary and a forged cookie sails straight through it.
+
+**Demo mode:** with no database credentials the app serves fixtures and requires no login. That is keyed off the *absence* of a database, so it can never be enabled somewhere that has real data to protect.
+
 ## Who can do what
 
 | | Member | Lead | PM | Super admin |

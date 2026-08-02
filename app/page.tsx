@@ -11,6 +11,7 @@ import {
   SectionHeading,
   StatusDot,
 } from "@/components/primitives";
+import { requireClientView } from "@/lib/auth/dal";
 import { getWaitingOnYou, getWorkspace } from "@/lib/data";
 import {
   deadline,
@@ -31,6 +32,7 @@ import {
  * cards. §3’s third principle — make their blockers louder than our tasks.
  */
 export default async function WorkspacePage() {
+  await requireClientView("/");
   const ws = await getWorkspace();
   const waiting = await getWaitingOnYou();
 

@@ -2,10 +2,12 @@ import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/she
 import { ActionForm, Field, TextInput } from "@/components/studio/form";
 import { Card, Notice } from "@/components/primitives";
 import { createClientAction } from "../../actions";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson } from "@/lib/studio/data";
 import { can } from "@/lib/studio/permissions";
 
 export default async function NewClientPage() {
+  await requireStudio("/studio/clients/new");
   const me = await getCurrentPerson();
 
   return (

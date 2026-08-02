@@ -2,6 +2,7 @@ import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/she
 import { ActionForm, CheckboxRow, Field, Select, TextInput } from "@/components/studio/form";
 import { Card, Label, Meta, Notice } from "@/components/primitives";
 import { createProjectAction } from "../../actions";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import { can } from "@/lib/studio/permissions";
 import { clientAccounts } from "@/lib/studio/store";
@@ -16,6 +17,7 @@ const TAG_HINTS: Record<string, string> = {
 
 export default async function NewProjectPage() {
   const me = await getCurrentPerson();
+  await requireStudio("/studio/projects/new");
   const studio = await getStudio();
   const allowed = can(me, "create_project");
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/shell";
 import { Card, Label, Meta } from "@/components/primitives";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import { can } from "@/lib/studio/permissions";
 import { clientAccounts } from "@/lib/studio/store";
@@ -9,6 +10,7 @@ import { count, naturalDate } from "@/lib/copy";
 
 export default async function ClientsPage() {
   const me = await getCurrentPerson();
+  await requireStudio("/studio/clients");
   const studio = await getStudio();
 
   return (

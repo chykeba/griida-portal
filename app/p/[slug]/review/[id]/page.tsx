@@ -3,6 +3,7 @@ import { ArrowUpRight } from "lucide-react";
 import { AppHeader, Page } from "@/components/shell";
 import { ReviewForm } from "@/components/review-form";
 import { Label, Notice, SectionHeading } from "@/components/primitives";
+import { requireClientView } from "@/lib/auth/dal";
 import { getDeliverable, getWorkspace } from "@/lib/data";
 import { errors, naturalAge, roundsCopy } from "@/lib/copy";
 
@@ -12,6 +13,7 @@ export default async function ReviewPage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
+  await requireClientView(`/p/${slug}/review/${id}`);
   const found = await getDeliverable(slug, id);
   if (!found) notFound();
 

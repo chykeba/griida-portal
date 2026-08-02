@@ -94,7 +94,11 @@ Finishing what's started. This is the shortest path to something a real client c
 - [ ] **Add `CLOUDFLARE_API_TOKEN`** to Vercel env (needs D1 Edit permission) — the app falls back to demo data until then
 - [x] **Seeded** (`db/seed/0001_demo.sql`) — 6 users, 2 projects, 3 project types, 11 milestones, 5 deliverables, 7 tasks, 3 blockers, an 8-item SOP checklist with 4 signed attestations. Idempotent; dates are relative so the natural-language layer keeps working
 - [x] Super admin: **hellogriida@gmail.com**
-- [ ] Magic-link auth + sessions — `users`, `auth_tokens`, `sessions` tables exist; no auth service on Cloudflare, so this is ours to build
+- [x] **Magic-link auth built** — 60-minute single-use links, 30-day absolute sessions, secrets SHA-256 hashed at rest, httpOnly/sameSite cookies
+- [x] Data Access Layer (`lib/auth/dal.ts`) does the real check next to the data; `proxy.ts` (Next 16's renamed middleware) does optimistic redirects only, per Next's guidance
+- [x] All 8 studio pages and 3 client pages gated
+- [x] **Demo mode** — with no DB credentials the app serves fixtures and needs no login, so the public preview keeps working. Keyed off the *absence* of a database, so it cannot be on where there is real data
+- [ ] Add `RESEND_API_KEY` to actually send the emails (link is logged/shown until then)
 - [ ] Swap [`lib/data/index.ts`](../lib/data/index.ts) to read through `client-queries.ts` (needs a session to scope by)
 
 **Make the actions real**

@@ -2,6 +2,7 @@ import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/she
 import { ActionForm, Field, Select, TextInput } from "@/components/studio/form";
 import { Badge, Card, Label, Meta, Notice } from "@/components/primitives";
 import { inviteTeamMemberAction } from "../actions";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import { ROLE_BLURB, ROLE_LABEL, can } from "@/lib/studio/permissions";
 import { pendingInvites } from "@/lib/studio/store";
@@ -13,6 +14,7 @@ const ROLES: StudioRole[] = ["member", "lead", "admin_pm", "super_admin"];
 
 export default async function TeamPage() {
   const me = await getCurrentPerson();
+  await requireStudio("/studio/team");
   const studio = await getStudio();
   const allowed = can(me, "manage_team");
 

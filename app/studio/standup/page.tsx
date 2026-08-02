@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { StudioHeader, StudioPage } from "@/components/studio/shell";
 import { Badge, Card, Label, Meta, StatusDot } from "@/components/primitives";
 import { PublishPanel } from "@/components/studio/publish-panel";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import {
   blockerSentence,
@@ -32,6 +33,7 @@ export default async function StandupPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  await requireStudio("/studio/standup");
   const studio = await getStudio();
   const me = await getCurrentPerson();
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { StudioHeader, StudioHeading, StudioPage } from "@/components/studio/shell";
 import { Badge, Card, EmptyState, Label, Meta, StatusDot } from "@/components/primitives";
+import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio } from "@/lib/studio/data";
 import {
   blockerSentence,
@@ -18,6 +19,7 @@ import { count, deadline, naturalAge } from "@/lib/copy";
  * with nothing to configure.
  */
 export default async function MyWorkPage() {
+  await requireStudio("/studio/my-work");
   const studio = await getStudio();
   const me = await getCurrentPerson();
   const mine = myWork(studio, me.id);

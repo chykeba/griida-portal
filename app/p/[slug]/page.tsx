@@ -13,6 +13,7 @@ import {
   SectionHeading,
   StatusDot,
 } from "@/components/primitives";
+import { requireClientView } from "@/lib/auth/dal";
 import { getProject, getWaitingOnYou, getWorkspace } from "@/lib/data";
 import { empty, healthCopy, naturalAge, naturalDate } from "@/lib/copy";
 
@@ -25,6 +26,7 @@ export default async function ProjectPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { slug } = await params;
+  await requireClientView(`/p/${slug}`);
   const view = parseViewMode((await searchParams).view);
 
   const project = await getProject(slug);
