@@ -20,7 +20,7 @@ The **client-facing half of Phase 1 is built and verified.** A client can sign i
 | Phase 1 — deployed | ✅ Live on Vercel, auto-deploys from `main` |
 | Phase 1 — backend wiring | ⬜ Migration written, not provisioned |
 | Phase 1 — internal slice | ⬜ Not started |
-| Phase 2 — internal PM layer | ⬜ Not started |
+| Phase 2 — internal lens | 🟡 Studio UI built on demo data; writes not wired |
 | Phase 3 — depth & learning loops | ⬜ Not started |
 
 **Verified at last commit:** `npm test` 13/13 · `npm run lint` clean · `npm run build` clean · all 4 routes render.
@@ -112,19 +112,24 @@ Finishing what's started. This is the shortest path to something a real client c
 
 ---
 
-## ⬜ Phase 2 — the internal lens
+## 🟡 Phase 2 — the internal lens
 
 The studio works inside the product; client updates fall out of that work.
+**Screens are built and reading from demo data.** What remains is persistence.
 
-- [ ] Tasks — assignee, due date, status, linked to milestone/deliverable
-- [ ] **My work** — per-person, across projects. *If a designer wouldn't open this each morning, the layer has failed*
-- [ ] **Tagging: responsible / blocker / mention** — three distinct meanings, not one @ (§5a)
-- [ ] **"Blocking others"** screen with aging clocks
-- [ ] Aging everywhere — time-in-state on deliverables, blockers, client items
-- [ ] **Standup mode** (§5c) — project-by-project walkthrough, generated from existing data
-- [ ] **Publish from inside standup** — the ritual that keeps the portal never-stale (§7.1)
-- [ ] Drafted client update — deterministic templating from logged events
-- [ ] Full SOP checklist library + append-only event log + countersigning
+- [x] Tasks — assignee, due date, status, linked to deliverable
+- [x] **My work** (`/studio/my-work`) — per-person, across projects
+- [x] **Tagging: responsible / blocker / mention** — three distinct meanings, structural not conventional (§5a)
+- [x] **"Blocking others"** with aging clocks, surfaced on Today *and* My work
+- [x] Aging everywhere — time-in-state on tasks, blockers, deliverables, client items
+- [x] **Standup mode** (`/studio/standup`) — project-by-project walkthrough, generated entirely from existing data
+- [x] **Publish from inside standup** (§7.1) — the ritual that keeps the portal never-stale
+- [x] Drafted client update — deterministic templating, no model (§6a)
+- [x] SOP checklist rendering: attestation, evidence links, countersign rules, publish gate
+- [x] 11 tests covering the gate, countersign separation of duties, and the draft composer
+- [ ] **Writes** — ticking, countersigning, waiving, task edits (all read-only today)
+- [ ] Append-only `checklist_item_events` log behind those writes
+- [ ] Super-admin template authoring UI (`/studio/admin`)
 - [ ] Project closeout checklist gating DONE
 - [ ] Approvals audit trail, scope-change log, extra-revision request flow
 - [ ] Reply-by-email inbound parsing (§10.3)
