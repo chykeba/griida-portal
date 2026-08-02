@@ -15,6 +15,7 @@
     "test:sql": "python3 scripts/check-sql.py"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1101.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",
     "clsx": "^2.1.1",

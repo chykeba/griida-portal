@@ -1,68 +1,117 @@
 import "server-only";
 
+import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { magicLinkEmail, reviewReadyEmail, type EmailBody } from "./content.ts";
+
 /**
- * Email sending.
+ * Email via Amazon SES.
  *
- * No provider is wired yet, so this logs and returns. That is deliberate rather
- * than pretending: the auth flow is complete and correct, and the only missing
- * piece is a transactional email account. Add RESEND_API_KEY and the branch
- * below starts sending for real, with nothing else to change.
+ * **Why the credentials are `SES_`-prefixed rather than `AWS_`:** Vercel
+ * functions run on AWS Lambda, and Lambda populates `AWS_ACCESS_KEY_ID`,
+ * `AWS_SECRET_ACCESS_KEY`, `AWS_REGION` and `AWS_SESSION_TOKEN` with its own
+ * execution-role credentials. Using those names invites a collision where the
+ * SDK silently picks up Vercel's role instead of your SES user and fails with a
+ * confusing permissions error. Own names, passed explicitly, no credential
+ * chain, no ambiguity.
  *
- * §6b: the sign-in link is the whole client experience of authentication, so
- * when this does go live the email needs the same care as the portal — plain
- * language, one obvious action, no marketing chrome.
+ * With no credentials configured the send is logged rather than performed, so
+ * the auth flow is walkable locally before SES is wired.
  */
 
-export interface EmailAddress {
-  email: string;
-}
-
 const FROM = process.env.EMAIL_FROM ?? "Griida <hello@griida.com>";
+const REPLY_TO = process.env.EMAIL_REPLY_TO;
 
-export async function sendMagicLink(to: string, url: string): Promise<void> {
-  const subject = "Your sign-in link";
-  const text = [
-    "Here's your link to sign in to the Griida portal:",
-    "",
-    url,
-    "",
-    "It works once and lasts an hour. If you didn't ask for it, you can ignore",
-    "this — nobody can get in without the link.",
-  ].join("\n");
-
-  await send({ to, subject, text });
+interface SesConfig {
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
 }
 
-async function send({
-  to,
-  subject,
-  text,
-}: {
-  to: string;
-  subject: string;
-  text: string;
-}): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
+function readConfig(): SesConfig | null {
+  const region = process.env.SES_REGION;
+  const accessKeyId = process.env.SES_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.SES_SECRET_ACCESS_KEY;
+  if (!region || !accessKeyId || !secretAccessKey) return null;
+  return { region, accessKeyId, secretAccessKey };
+}
 
-  if (!apiKey) {
-    // Not an error: the flow is meant to work locally without an email account.
-    // The login screen surfaces the link directly outside production.
-    console.info(`[email] would send to ${to}: ${subject}\n${text}`);
+export function isEmailConfigured(): boolean {
+  return readConfig() !== null;
+}
+
+/** One client per lambda instance rather than per send. */
+let cached: SESv2Client | null = null;
+
+function client(config: SesConfig): SESv2Client {
+  if (!cached) {
+    cached = new SESv2Client({
+      region: config.region,
+      credentials: {
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      },
+    });
+  }
+  return cached;
+}
+
+async function send(to: string, body: EmailBody): Promise<void> {
+  const config = readConfig();
+
+  if (!config) {
+    // Not an error — the flow is meant to work before SES exists. The login
+    // screen surfaces the link directly outside production.
+    console.info(`[email] not configured; would send to ${to}\n${body.subject}\n${body.text}`);
     return;
   }
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ from: FROM, to, subject, text }),
-  });
-
-  if (!response.ok) {
-    // Surfaced to the caller so the user is told honestly that it didn't send,
-    // rather than being left waiting for an email that will never arrive.
-    throw new Error(`Email send failed: ${response.status}`);
+  try {
+    await client(config).send(
+      new SendEmailCommand({
+        FromEmailAddress: FROM,
+        Destination: { ToAddresses: [to] },
+        ReplyToAddresses: REPLY_TO ? [REPLY_TO] : undefined,
+        Content: {
+          Simple: {
+            Subject: { Data: body.subject, Charset: "UTF-8" },
+            Body: {
+              // Both parts, always. Text-only looks broken in modern clients;
+              // HTML-only trips spam filters and fails in text-mode readers.
+              Text: { Data: body.text, Charset: "UTF-8" },
+              Html: { Data: body.html, Charset: "UTF-8" },
+            },
+          },
+        },
+      }),
+    );
+  } catch (error) {
+    // Rethrow with something a human can act on. SES's own errors are precise
+    // but jargon-heavy, and the two below account for most first-run failures.
+    const name = error instanceof Error ? error.name : "Unknown";
+    if (name === "MessageRejected") {
+      throw new Error(
+        `SES rejected the message. If the account is still in the sandbox it can ` +
+          `only send to verified addresses — check the SES console, or request ` +
+          `production access. (${name})`,
+      );
+    }
+    if (name === "NotFoundException" || name === "BadRequestException") {
+      throw new Error(
+        `SES refused the sender "${FROM}". The From address or its domain has to ` +
+          `be a verified identity in ${config.region}. (${name})`,
+      );
+    }
+    throw error;
   }
+}
+
+export async function sendMagicLink(to: string, url: string): Promise<void> {
+  await send(to, magicLinkEmail(url));
+}
+
+export async function sendReviewReady(
+  to: string,
+  params: { firstName: string; projectName: string; deliverableName: string; url: string },
+): Promise<void> {
+  await send(to, reviewReadyEmail(params));
 }

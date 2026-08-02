@@ -99,7 +99,8 @@ Finishing what's started. This is the shortest path to something a real client c
 - [x] Data Access Layer (`lib/auth/dal.ts`) does the real check next to the data; `proxy.ts` (Next 16's renamed middleware) does optimistic redirects only, per Next's guidance
 - [x] All 8 studio pages and 3 client pages gated
 - [x] **Demo mode** — with no DB credentials the app serves fixtures and needs no login, so the public preview keeps working. Keyed off the *absence* of a database, so it cannot be on where there is real data
-- [ ] Add `RESEND_API_KEY` to actually send the emails (link is logged/shown until then)
+- [x] **Amazon SES** wired (`@aws-sdk/client-sesv2`), text + HTML parts, 7 tests on the wording and escaping
+- [ ] Add `SES_REGION` / `SES_ACCESS_KEY_ID` / `SES_SECRET_ACCESS_KEY` to Vercel — and check whether the SES account is still in **sandbox**, which only sends to verified addresses
 - [x] Swapped [`lib/data/index.ts`](../lib/data/index.ts) — verified end to end with real sessions against live D1
 - [ ] Studio lens still reads fixtures (`lib/studio/data.ts`) — same treatment needed
 - [ ] Writes: approve / request changes / checklist ticks still simulated
