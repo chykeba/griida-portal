@@ -3,8 +3,11 @@
  *
  * Single source of truth, used by BOTH the UI (to decide what to render) and
  * the server actions (to decide what to allow). Hiding a button is not
- * authorisation — every mutation re-checks here, and the RLS policies in
- * migration 0001 re-check again in the database.
+ * authorisation — every mutation re-checks here.
+ *
+ * There is no second line of defence. D1 has no row-level security, so unlike
+ * a Postgres deployment there is no database-side policy to catch a missed
+ * check. This module and the server actions that call it ARE the boundary.
  *
  * The model, as decided:
  *   PM and super admin  — create projects, create clients
@@ -18,7 +21,11 @@ export type Capability =
   | "manage_team"
   | "author_templates"
   | "publish_update"
-  | "waive_checklist_item";
+  | "waive_checklist_item"
+  /** Grant or revoke a client's sight of a project. */
+  | "manage_project_clients"
+  /** Assert a client can open a review link — the one gate with no override. */
+  | "attest_link_access";
 
 const BY_ROLE: Record<StudioRole, Capability[]> = {
   super_admin: [
@@ -28,9 +35,18 @@ const BY_ROLE: Record<StudioRole, Capability[]> = {
     "author_templates",
     "publish_update",
     "waive_checklist_item",
+    "manage_project_clients",
+    "attest_link_access",
   ],
-  admin_pm: ["create_project", "create_client", "publish_update", "waive_checklist_item"],
-  lead: ["publish_update"],
+  admin_pm: [
+    "create_project",
+    "create_client",
+    "publish_update",
+    "waive_checklist_item",
+    "manage_project_clients",
+    "attest_link_access",
+  ],
+  lead: ["publish_update", "attest_link_access"],
   member: [],
 };
 

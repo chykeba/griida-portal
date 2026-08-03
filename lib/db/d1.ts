@@ -34,7 +34,23 @@ export function isLive(): boolean {
 interface D1Response<T> {
   success: boolean;
   errors?: { code: number; message: string }[];
-  result?: { results: T[]; success: boolean }[];
+  result?: { results: T[]; success: boolean; meta?: { changes?: number } }[];
+}
+
+/** Rows the last statement actually changed. */
+let lastChanges = 0;
+
+/**
+ * How many rows the previous write affected.
+ *
+ * Most writes here are conditional UPDATEs whose WHERE clause *is* the security
+ * or state guard — `WHERE status = 'open'`, `WHERE checked_by != ?2`. Without
+ * this, "the guard rejected it" and "it worked" are indistinguishable, which is
+ * how a double-submit came to tell a client "Got it" while dropping their
+ * answer. Call it immediately after the write you care about.
+ */
+export function rowsChanged(): number {
+  return lastChanges;
 }
 
 async function execute<T>(sql: string, params: unknown[]): Promise<T[]> {
@@ -71,6 +87,7 @@ async function execute<T>(sql: string, params: unknown[]): Promise<T[]> {
     throw new Error(`D1 query failed: ${detail}`);
   }
 
+  lastChanges = body.result?.[0]?.meta?.changes ?? 0;
   return body.result?.[0]?.results ?? [];
 }
 

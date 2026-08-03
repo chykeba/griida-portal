@@ -1,6 +1,6 @@
 import "server-only";
 
-import { query } from "./d1.ts";
+import { query, rowsChanged } from "./d1.ts";
 import { NotPermitted } from "./checklist-writes.ts";
 import { randomToken } from "../auth/tokens.ts";
 
@@ -146,12 +146,30 @@ export async function attestClientAccess(
   linkId: string,
   actorId: string,
   confirmed: boolean,
+  projectId: string,
 ): Promise<void> {
+  // Scoped to the project the actor is actually standing in. A link id is a
+  // bare opaque string in the form; without this, one project’s lead could
+  // flip the access gate on another project’s review link and unblock a send
+  // they never looked at. Links have no project column, so we reach them
+  // through the two places a project can hold one.
   await query(
-    `UPDATE links SET client_access_ok = ?1, access_checked_at = datetime('now'), added_by = COALESCE(added_by, ?2)
-      WHERE id = ?3`,
-    [confirmed ? 1 : 0, actorId, linkId],
+    `UPDATE links
+        SET client_access_ok = ?1, access_checked_at = datetime('now'),
+            added_by = COALESCE(added_by, ?2)
+      WHERE id = ?3
+        AND (
+          EXISTS (SELECT 1 FROM deliverable_versions v
+                    JOIN deliverables d ON d.id = v.deliverable_id
+                   WHERE v.review_link_id = ?3 AND d.project_id = ?4)
+          OR EXISTS (SELECT 1 FROM project_documents pd
+                      WHERE pd.link_id = ?3 AND pd.project_id = ?4)
+        )`,
+    [confirmed ? 1 : 0, actorId, linkId, projectId],
   );
+  if (rowsChanged() === 0) {
+    throw new Error("That link isn’t part of this project.");
+  }
 }
 
 export async function reviewLinkFor(deliverableId: string) {

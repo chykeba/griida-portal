@@ -160,6 +160,7 @@ export default async function StudioProjectPage({
 
                       {!isDemoMode() ? (
                         <ReviewLink
+                          canAttest={can(me, "attest_link_access")}
                           deliverableId={d.id}
                           slug={project.slug}
                           link={links.get(d.id) ?? null}
@@ -309,6 +310,7 @@ export default async function StudioProjectPage({
                       projectId={project.id}
                       slug={project.slug}
                       clients={clients}
+                      canManage={can(me, "manage_project_clients")}
                     />
                   </Card>
 

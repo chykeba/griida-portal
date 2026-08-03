@@ -53,6 +53,7 @@ export async function projectClients(projectId: string): Promise<ProjectClient[]
  */
 export async function addClientToProject(input: {
   projectId: string;
+  actorId: string;
   name: string;
   email: string;
   role: ProjectClient["role"];
@@ -105,12 +106,21 @@ export async function addClientToProject(input: {
     [input.projectId, userId, input.role],
   );
 
+  // Who can see a project is the thing this whole app is about. Both halves
+  // of that decision are logged, with a name against them.
+  await query(
+    `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility, payload)
+     VALUES (?1, ?2, 'project.client_added', 'user', ?3, 'internal', ?4)`,
+    [input.projectId, input.actorId, userId, JSON.stringify({ email, role: input.role })],
+  );
+
   return { userId, isNew };
 }
 
 export async function removeClientFromProject(
   projectId: string,
   userId: string,
+  actorId: string,
 ): Promise<void> {
   // Only the project role goes. Their account membership and history stay —
   // removing someone from one job shouldn't erase them from the relationship.
@@ -118,6 +128,20 @@ export async function removeClientFromProject(
     projectId,
     userId,
   ]);
+  await query(
+    `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility)
+     VALUES (?1, ?2, 'project.client_removed', 'user', ?3, 'internal')`,
+    [projectId, actorId, userId],
+  );
+}
+
+/** The id behind a slug — so an action can trust the route, not the form. */
+export async function projectIdForSlug(slug: string): Promise<string | null> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM projects WHERE slug = ?1 LIMIT 1`,
+    [slug],
+  );
+  return rows[0]?.id ?? null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -151,15 +175,19 @@ export async function createClientAction(input: {
 }
 
 /** The studio accepts what came back, closing the loop. */
-export async function acceptClientAction(actionId: string, actorId: string): Promise<void> {
+export async function acceptClientAction(
+  actionId: string,
+  actorId: string,
+  projectId: string,
+): Promise<void> {
   await query(
     `UPDATE client_actions SET status = 'accepted', accepted_at = datetime('now')
-      WHERE id = ?1 AND status = 'submitted'`,
-    [actionId],
+      WHERE id = ?1 AND status = 'submitted' AND project_id = ?2`,
+    [actionId, projectId],
   );
   const row = await query<{ project_id: string }>(
-    `SELECT project_id FROM client_actions WHERE id = ?1 LIMIT 1`,
-    [actionId],
+    `SELECT project_id FROM client_actions WHERE id = ?1 AND project_id = ?2 LIMIT 1`,
+    [actionId, projectId],
   );
   if (row[0]) {
     await query(
@@ -170,15 +198,19 @@ export async function acceptClientAction(actionId: string, actorId: string): Pro
   }
 }
 
-export async function reopenClientAction(actionId: string, actorId: string): Promise<void> {
+export async function reopenClientAction(
+  actionId: string,
+  actorId: string,
+  projectId: string,
+): Promise<void> {
   await query(
     `UPDATE client_actions SET status = 'open', submitted_at = NULL, accepted_at = NULL
-      WHERE id = ?1`,
-    [actionId],
+      WHERE id = ?1 AND project_id = ?2`,
+    [actionId, projectId],
   );
   const row = await query<{ project_id: string }>(
-    `SELECT project_id FROM client_actions WHERE id = ?1 LIMIT 1`,
-    [actionId],
+    `SELECT project_id FROM client_actions WHERE id = ?1 AND project_id = ?2 LIMIT 1`,
+    [actionId, projectId],
   );
   if (row[0]) {
     await query(

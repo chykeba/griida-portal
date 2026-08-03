@@ -68,7 +68,18 @@ export async function notifyReviewReady(params: {
   const path = `/p/${params.projectSlug}/review/${params.deliverableId}`;
   const url = `${APP_URL}${path}`;
 
-  for (const person of await clientsOn(params.projectId, params.actorId)) {
+  // The lookup itself is inside the guard. It was outside, which meant a
+  // database hiccup here failed a write that had already succeeded — the exact
+  // opposite of what this module promises.
+  let recipients: Recipient[] = [];
+  try {
+    recipients = await clientsOn(params.projectId, params.actorId);
+  } catch (error) {
+    console.error("[notify] couldn’t look up recipients:", error);
+    return;
+  }
+
+  for (const person of recipients) {
     try {
       await sendReviewReady(person.email, {
         firstName: person.firstName,
@@ -95,7 +106,18 @@ export async function notifyUpdatePublished(params: {
   const path = `/p/${params.projectSlug}`;
   const url = `${APP_URL}${path}`;
 
-  for (const person of await clientsOn(params.projectId, params.actorId)) {
+  // The lookup itself is inside the guard. It was outside, which meant a
+  // database hiccup here failed a write that had already succeeded — the exact
+  // opposite of what this module promises.
+  let recipients: Recipient[] = [];
+  try {
+    recipients = await clientsOn(params.projectId, params.actorId);
+  } catch (error) {
+    console.error("[notify] couldn’t look up recipients:", error);
+    return;
+  }
+
+  for (const person of recipients) {
     try {
       await sendUpdate(person.email, {
         firstName: person.firstName,

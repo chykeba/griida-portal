@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireStudio } from "@/lib/auth/dal";
 import { isDemoMode } from "@/lib/auth/dal";
 import { getCurrentPerson } from "@/lib/studio/data";
-import { can } from "@/lib/studio/permissions";
+import { assertCan, can } from "@/lib/studio/permissions";
 import {
   countersign,
   itemContext,
@@ -21,6 +21,7 @@ import {
   addClientToProject,
   createClientAction,
   removeClientFromProject,
+  projectIdForSlug,
   reopenClientAction,
   setHealth,
 } from "@/lib/db/project-writes";
@@ -129,12 +130,12 @@ export async function attestAccessAction(
   const linkId = String(formData.get("linkId") ?? "");
   const confirmed = String(formData.get("confirmed") ?? "") === "yes";
 
-  await requireStudio(`/studio/p/${slug}`);
+  const { me, projectId } = await studioGate(slug);
   if (isDemoMode()) return { error: DEMO_NOTE };
-  const me = await getCurrentPerson();
 
   try {
-    await attestClientAccess(linkId, me.id, confirmed);
+    assertCan(me, "attest_link_access");
+    await attestClientAccess(linkId, me.id, confirmed, sameProject(null, projectId));
   } catch (e) {
     return { error: e instanceof Error ? e.message : "That didn’t save." };
   }
@@ -222,9 +223,28 @@ export async function publishAction(
 /* People, requests and health                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Signed in, on the studio side, and standing in a real project.
+ *
+ * Returns the project id resolved from the ROUTE. Actions must use this rather
+ * than the `projectId` in the form — the form is attacker-controlled, and the
+ * route is what the page was authorised against. Anything still sending a
+ * projectId field is reconciled against this and refused if it disagrees.
+ */
 async function studioGate(slug: string) {
   await requireStudio(`/studio/p/${slug}`);
-  return getCurrentPerson();
+  const [me, projectId] = await Promise.all([getCurrentPerson(), projectIdForSlug(slug)]);
+  return { me, projectId };
+}
+
+/** Refuses a form that names a different project than the page it came from. */
+function sameProject(formValue: FormDataEntryValue | null, projectId: string | null): string {
+  const claimed = String(formValue ?? "");
+  if (!projectId) throw new Error("That project has gone.");
+  if (claimed && claimed !== projectId) {
+    throw new Error("That request didn’t match this project. Reload the page and try again.");
+  }
+  return projectId;
 }
 
 export async function addClientAction(
@@ -232,12 +252,14 @@ export async function addClientAction(
   formData: FormData,
 ): Promise<ItemState> {
   const slug = String(formData.get("slug") ?? "");
-  await studioGate(slug);
+  const { me, projectId } = await studioGate(slug);
   if (isDemoMode()) return { error: DEMO_NOTE };
 
   try {
+    assertCan(me, "manage_project_clients");
     await addClientToProject({
-      projectId: String(formData.get("projectId") ?? ""),
+      projectId: sameProject(formData.get("projectId"), projectId),
+      actorId: me.id,
       name: String(formData.get("name") ?? ""),
       email: String(formData.get("email") ?? ""),
       role: String(formData.get("role") ?? "reviewer") as "owner" | "reviewer" | "viewer",
@@ -251,11 +273,13 @@ export async function addClientAction(
 
 export async function removeClientAction(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
-  await studioGate(slug);
+  const { me, projectId } = await studioGate(slug);
   if (isDemoMode()) return;
+  assertCan(me, "manage_project_clients");
   await removeClientFromProject(
-    String(formData.get("projectId") ?? ""),
+    sameProject(formData.get("projectId"), projectId),
     String(formData.get("userId") ?? ""),
+    me.id,
   );
   revalidatePath(`/studio/p/${slug}`);
 }
@@ -265,12 +289,12 @@ export async function askClientAction(
   formData: FormData,
 ): Promise<ItemState> {
   const slug = String(formData.get("slug") ?? "");
-  const me = await studioGate(slug);
+  const { me, projectId } = await studioGate(slug);
   if (isDemoMode()) return { error: DEMO_NOTE };
 
   try {
     await createClientAction({
-      projectId: String(formData.get("projectId") ?? ""),
+      projectId: sameProject(formData.get("projectId"), projectId),
       title: String(formData.get("title") ?? ""),
       description: String(formData.get("description") ?? "") || null,
       blocksNote: String(formData.get("blocksNote") ?? "") || null,
@@ -287,13 +311,16 @@ export async function askClientAction(
 
 export async function resolveActionAction(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
-  const me = await studioGate(slug);
+  const { me, projectId } = await studioGate(slug);
   if (isDemoMode()) return;
+  // Same reasoning as sameProject: the action id comes from the form, so the
+  // write is scoped to the project this page is for.
   const id = String(formData.get("actionId") ?? "");
+  const scope = sameProject(null, projectId);
   if (String(formData.get("op") ?? "") === "reopen") {
-    await reopenClientAction(id, me.id);
+    await reopenClientAction(id, me.id, scope);
   } else {
-    await acceptClientAction(id, me.id);
+    await acceptClientAction(id, me.id, scope);
   }
   revalidatePath(`/studio/p/${slug}`);
   revalidatePath(`/p/${slug}`);
@@ -304,12 +331,12 @@ export async function setHealthAction(
   formData: FormData,
 ): Promise<ItemState> {
   const slug = String(formData.get("slug") ?? "");
-  const me = await studioGate(slug);
+  const { me, projectId } = await studioGate(slug);
   if (isDemoMode()) return { error: DEMO_NOTE };
 
   try {
     await setHealth({
-      projectId: String(formData.get("projectId") ?? ""),
+      projectId: sameProject(formData.get("projectId"), projectId),
       health: String(formData.get("health") ?? "on_track") as
         | "on_track" | "at_risk" | "blocked",
       note: String(formData.get("note") ?? ""),

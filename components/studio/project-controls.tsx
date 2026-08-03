@@ -110,13 +110,16 @@ export function ClientAccess({
   projectId,
   slug,
   clients,
+  canManage,
 }: {
   projectId: string;
   slug: string;
   clients: ProjectClientView[];
+  /** PM and super admin. Hiding the control isn’t the check — the action re-checks. */
+  canManage: boolean;
 }) {
   const [state, action, pending] = useActionState(addClientAction, idle);
-  const [open, setOpen] = useState(clients.length === 0);
+  const [open, setOpen] = useState(canManage && clients.length === 0);
 
   return (
     <div>
@@ -136,6 +139,7 @@ export function ClientAccess({
                   {c.hasSignedIn ? "" : " · hasn’t signed in yet"}
                 </Meta>
               </span>
+              {canManage ? (
               <form action={removeClientAction}>
                 <input type="hidden" name="slug" value={slug} />
                 <input type="hidden" name="projectId" value={projectId} />
@@ -145,12 +149,17 @@ export function ClientAccess({
                   <X className="size-4" strokeWidth={1.75} aria-hidden />
                 </button>
               </form>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
 
-      {open ? (
+      {!canManage ? (
+        <Meta className="block">
+          Only a project manager or super admin can change who sees this.
+        </Meta>
+      ) : open ? (
         <form action={action} className="space-y-2">
           <input type="hidden" name="projectId" value={projectId} />
           <input type="hidden" name="slug" value={slug} />

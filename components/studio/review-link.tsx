@@ -30,10 +30,13 @@ export function ReviewLink({
   deliverableId,
   slug,
   link,
+  canAttest,
 }: {
   deliverableId: string;
   slug: string;
   link: ReviewLinkView | null;
+  /** Lead and up. The action re-checks; this just stops offering a dead button. */
+  canAttest: boolean;
 }) {
   const [setState, setAction, setting] = useActionState<LinkState, FormData>(setLinkAction, {
     error: null,
@@ -75,6 +78,11 @@ export function ReviewLink({
             <p className="mt-2 flex items-center gap-1.5 text-small text-approved">
               <Check className="size-3.5" strokeWidth={2.5} aria-hidden />
               Confirmed this client can open it
+            </p>
+          ) : !canAttest ? (
+            <p className="mt-2 text-small text-caution">
+              Not confirmed yet. A lead needs to open it as the client would
+              before this can go over.
             </p>
           ) : (
             <form action={attestAction} className="mt-2">

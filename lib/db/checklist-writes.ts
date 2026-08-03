@@ -1,6 +1,7 @@
 import "server-only";
 
-import { query } from "./d1.ts";
+import { query, rowsChanged } from "./d1.ts";
+import { randomToken } from "../auth/tokens.ts";
 import type { StudioRole } from "../studio/types.ts";
 
 /**
@@ -189,13 +190,22 @@ export async function countersign(
   const verdict = mayCountersign(ctx, actorId, role);
   if (!verdict.ok) throw new NotPermitted(verdict.why);
 
-  await appendEvent(ctx.itemId, "countersigned", actorId);
+  // The guarded UPDATE runs first. `checked_by != ?2` can reject this even
+  // after mayCountersign passed — someone may have unticked the item in the
+  // gap — and the event log is immutable, so an event written for a change
+  // that didn't happen would be permanent.
   await query(
     `UPDATE checklist_items
         SET state = 'countersigned', state_changed_at = ?1, countersigned_by = ?2
-      WHERE id = ?3 AND checked_by != ?2`,
+      WHERE id = ?3 AND state = 'checked' AND checked_by IS NOT NULL AND checked_by != ?2`,
     [new Date().toISOString(), actorId, ctx.itemId],
   );
+  if (rowsChanged() === 0) {
+    throw new NotPermitted(
+      "That item changed while you were looking at it — check where it stands now.",
+    );
+  }
+  await appendEvent(ctx.itemId, "countersigned", actorId);
 }
 
 /**
@@ -227,6 +237,8 @@ export interface PublishCheck {
   ok: boolean;
   reasons: string[];
   hardBlocked: boolean;
+  /** Current state, so a second send can be refused rather than repeated. */
+  status: string;
   projectId: string;
   projectSlug: string;
   projectName: string;
@@ -294,6 +306,7 @@ export async function publishCheck(deliverableId: string): Promise<PublishCheck 
     ok: reasons.length === 0,
     reasons,
     hardBlocked,
+    status: d.status,
     projectId: d.project_id,
     projectSlug: d.project_slug,
     projectName: d.project_name,
@@ -330,6 +343,16 @@ export async function sendToClient(
 ): Promise<PublishCheck> {
   const check = await publishCheck(deliverableId);
   if (!check) throw new NotPermitted("That deliverable has gone.");
+
+  // Idempotence. Without this, a second click re-stamped the publication
+  // record with a different actor, wrote a duplicate client-visible event, and
+  // emailed the client a second time. Two leads clicking Send is the ordinary
+  // case, not an edge one.
+  if (check.status !== "draft" && check.status !== "changes_requested") {
+    throw new NotPermitted(
+      `That’s already with the client — it went over when it moved to ${check.status.replace("_", " ")}.`,
+    );
+  }
 
   if (check.hardBlocked) {
     throw new NotPermitted(
@@ -395,7 +418,7 @@ export async function publishUpdate(
   await query(
     `INSERT INTO updates (id, project_id, body, health_at_publish, status, published_by, published_at)
      VALUES (?1, ?2, ?3, ?4, 'published', ?5, ?6)`,
-    [`upd_${Date.now().toString(36)}`, projectId, text, health[0]?.health ?? null, actorId, now],
+    [`upd_${randomToken(8)}`, projectId, text, health[0]?.health ?? null, actorId, now],
   );
   await query(`UPDATE projects SET last_published_at = ?1 WHERE id = ?2`, [now, projectId]);
   await query(
