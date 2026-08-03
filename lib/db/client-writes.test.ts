@@ -82,6 +82,16 @@ test("a decision never overwrites one already made", () => {
   }
 });
 
+test("responding to a request is scoped by role in SQL too", () => {
+  const sql = SOURCE.match(/`(UPDATE client_actions[^`]*)`/)?.[1] ?? "";
+  assert.match(
+    sql,
+    /project_client_roles WHERE user_id = \?4/,
+    "a client could answer another client's request by guessing its id",
+  );
+  assert.match(sql, /status = 'open'/, "an already-answered request must not be overwritten");
+});
+
 test("an over-scope request is recorded rather than blocked", () => {
   // The studio's decision: don't stop the client, price it and tell them.
   assert.match(SOURCE, /INSERT INTO revision_requests/);

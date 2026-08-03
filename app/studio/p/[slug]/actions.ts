@@ -16,6 +16,14 @@ import {
 } from "@/lib/db/checklist-writes";
 import { notifyReviewReady, notifyUpdatePublished } from "@/lib/db/notify";
 import { attestClientAccess, checkReachable, setReviewLink } from "@/lib/db/link-writes";
+import {
+  acceptClientAction,
+  addClientToProject,
+  createClientAction,
+  removeClientFromProject,
+  reopenClientAction,
+  setHealth,
+} from "@/lib/db/project-writes";
 
 export interface ItemState {
   error: string | null;
@@ -204,6 +212,112 @@ export async function publishAction(
     return { error: e instanceof Error ? e.message : "That didn’t send." };
   }
 
+  revalidatePath(`/studio/p/${slug}`);
+  revalidatePath(`/p/${slug}`);
+  return { error: null };
+}
+
+
+/* -------------------------------------------------------------------------- */
+/* People, requests and health                                                */
+/* -------------------------------------------------------------------------- */
+
+async function studioGate(slug: string) {
+  await requireStudio(`/studio/p/${slug}`);
+  return getCurrentPerson();
+}
+
+export async function addClientAction(
+  _prev: ItemState,
+  formData: FormData,
+): Promise<ItemState> {
+  const slug = String(formData.get("slug") ?? "");
+  await studioGate(slug);
+  if (isDemoMode()) return { error: DEMO_NOTE };
+
+  try {
+    await addClientToProject({
+      projectId: String(formData.get("projectId") ?? ""),
+      name: String(formData.get("name") ?? ""),
+      email: String(formData.get("email") ?? ""),
+      role: String(formData.get("role") ?? "reviewer") as "owner" | "reviewer" | "viewer",
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "That didn’t work." };
+  }
+  revalidatePath(`/studio/p/${slug}`);
+  return { error: null };
+}
+
+export async function removeClientAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get("slug") ?? "");
+  await studioGate(slug);
+  if (isDemoMode()) return;
+  await removeClientFromProject(
+    String(formData.get("projectId") ?? ""),
+    String(formData.get("userId") ?? ""),
+  );
+  revalidatePath(`/studio/p/${slug}`);
+}
+
+export async function askClientAction(
+  _prev: ItemState,
+  formData: FormData,
+): Promise<ItemState> {
+  const slug = String(formData.get("slug") ?? "");
+  const me = await studioGate(slug);
+  if (isDemoMode()) return { error: DEMO_NOTE };
+
+  try {
+    await createClientAction({
+      projectId: String(formData.get("projectId") ?? ""),
+      title: String(formData.get("title") ?? ""),
+      description: String(formData.get("description") ?? "") || null,
+      blocksNote: String(formData.get("blocksNote") ?? "") || null,
+      dueOn: String(formData.get("dueOn") ?? "") || null,
+      actorId: me.id,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "That didn’t work." };
+  }
+  revalidatePath(`/studio/p/${slug}`);
+  revalidatePath(`/p/${slug}`);
+  return { error: null };
+}
+
+export async function resolveActionAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get("slug") ?? "");
+  const me = await studioGate(slug);
+  if (isDemoMode()) return;
+  const id = String(formData.get("actionId") ?? "");
+  if (String(formData.get("op") ?? "") === "reopen") {
+    await reopenClientAction(id, me.id);
+  } else {
+    await acceptClientAction(id, me.id);
+  }
+  revalidatePath(`/studio/p/${slug}`);
+  revalidatePath(`/p/${slug}`);
+}
+
+export async function setHealthAction(
+  _prev: ItemState,
+  formData: FormData,
+): Promise<ItemState> {
+  const slug = String(formData.get("slug") ?? "");
+  const me = await studioGate(slug);
+  if (isDemoMode()) return { error: DEMO_NOTE };
+
+  try {
+    await setHealth({
+      projectId: String(formData.get("projectId") ?? ""),
+      health: String(formData.get("health") ?? "on_track") as
+        | "on_track" | "at_risk" | "blocked",
+      note: String(formData.get("note") ?? ""),
+      actorId: me.id,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "That didn’t work." };
+  }
   revalidatePath(`/studio/p/${slug}`);
   revalidatePath(`/p/${slug}`);
   return { error: null };

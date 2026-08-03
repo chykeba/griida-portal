@@ -97,7 +97,7 @@ export default async function ProjectPage({
                 >
                   Needs you
                 </SectionHeading>
-                <WaitingList items={waiting} showProject={false} />
+                <WaitingList items={waiting} showProject={false} respondable />
               </section>
 
               <section className="mb-10">

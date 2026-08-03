@@ -8,6 +8,13 @@ import { ChecklistRow, type ChecklistItemView } from "@/components/studio/checkl
 import { SendToClient } from "@/components/studio/send-to-client";
 import { ReviewLink, type ReviewLinkView } from "@/components/studio/review-link";
 import { reviewLinkFor } from "@/lib/db/link-writes";
+import { projectClients } from "@/lib/db/project-writes";
+import {
+  ClientAccess,
+  ClientRequests,
+  HealthControl,
+} from "@/components/studio/project-controls";
+import { query } from "@/lib/db/d1";
 import { isDemoMode } from "@/lib/auth/dal";
 import { requireStudio } from "@/lib/auth/dal";
 import { getCurrentPerson, getStudio, getStudioProject } from "@/lib/studio/data";
@@ -43,6 +50,22 @@ export default async function StudioProjectPage({
 
   // One query per deliverable, issued together — the review link and its
   // access attestation, which the gate depends on.
+  const clients = isDemoMode() ? [] : await projectClients(project.id);
+  // Requests including answered ones, so the loop can be closed here.
+  const requests = isDemoMode()
+    ? []
+    : await query<{
+        id: string; title: string; status: string; created_at: string;
+        response_url: string | null; response_text: string | null;
+      }>(
+        `SELECT c.id, c.title, c.status, c.created_at, c.response_text, l.url AS response_url
+           FROM client_actions c
+           LEFT JOIN links l ON l.id = c.response_link_id
+          WHERE c.project_id = ?1 AND c.status != 'accepted'
+          ORDER BY c.created_at`,
+        [project.id],
+      );
+
   const links = isDemoMode()
     ? new Map<string, ReviewLinkView | null>()
     : new Map(
@@ -86,7 +109,16 @@ export default async function StudioProjectPage({
           }
         />
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
+        {!isDemoMode() ? (
+          <HealthControl
+            projectId={project.id}
+            slug={project.slug}
+            health={project.health}
+            note={project.healthNote}
+          />
+        ) : null}
+
+        <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <div className="min-w-0 space-y-8">
             {/* ---- Deliverables and their gates ---------------------- */}
             <section>
@@ -269,6 +301,35 @@ export default async function StudioProjectPage({
           {/* ---- Publishing ------------------------------------------ */}
           <aside className="space-y-4">
             <div className="lg:sticky lg:top-24">
+              {!isDemoMode() ? (
+                <>
+                  <h2 className="label mb-2 text-ink-soft">Who can see this</h2>
+                  <Card className="mb-6 px-4 py-4">
+                    <ClientAccess
+                      projectId={project.id}
+                      slug={project.slug}
+                      clients={clients}
+                    />
+                  </Card>
+
+                  <h2 className="label mb-2 text-ink-soft">Waiting on them</h2>
+                  <Card className="mb-6 px-4 py-4">
+                    <ClientRequests
+                      projectId={project.id}
+                      slug={project.slug}
+                      actions={requests.map((r) => ({
+                        id: r.id,
+                        title: r.title,
+                        status: r.status,
+                        responseUrl: r.response_url,
+                        responseText: r.response_text,
+                        age: naturalAge(r.created_at),
+                      }))}
+                    />
+                  </Card>
+                </>
+              ) : null}
+
               <h2 className="label mb-3 text-ink-soft">Client’s view</h2>
               <Card className="px-4 py-4">
                 <Meta className={freshness.stale ? "text-caution" : ""}>{freshness.label}</Meta>
@@ -283,7 +344,7 @@ export default async function StudioProjectPage({
                 </div>
               </Card>
 
-              {project.clientActions.length > 0 ? (
+              {isDemoMode() && project.clientActions.length > 0 ? (
                 <div className="mt-4">
                   <h2 className="label mb-2 text-ink-soft">Waiting on the client</h2>
                   <ul className="space-y-1.5">

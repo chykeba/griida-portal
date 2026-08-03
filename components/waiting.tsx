@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { Card, EmptyState, Label, StatusDot } from "./primitives";
 import { blocksCopy, deadline, empty, naturalAge } from "@/lib/copy";
+import { ClientActionForm } from "./client-action-form";
 import type { ClientActionView } from "@/lib/types";
 
 /**
@@ -12,9 +13,12 @@ import type { ClientActionView } from "@/lib/types";
 export function WaitingList({
   items,
   showProject = true,
+  respondable = false,
 }: {
   items: ClientActionView[];
   showProject?: boolean;
+  /** On a project page the client can answer inline; on the roll-up they can't. */
+  respondable?: boolean;
 }) {
   if (items.length === 0) {
     return <EmptyState headline={empty.waiting.headline} body={empty.waiting.body} />;
@@ -29,9 +33,8 @@ export function WaitingList({
 
         return (
           <Card as="li" key={item.id} className="overflow-hidden">
-            <Link
-              href={`/p/${item.projectSlug}#needs-you`}
-              className="pressable block px-4 py-3.5 hover:bg-paper-sunk"
+            <Wrapper
+              href={respondable ? null : `/p/${item.projectSlug}#needs-you`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -67,17 +70,33 @@ export function WaitingList({
                       {blocks}
                     </p>
                   ) : null}
+
+                  {respondable ? (
+                    <ClientActionForm actionId={item.id} slug={item.projectSlug} />
+                  ) : null}
                 </div>
-                <ChevronRight
-                  className="mt-0.5 size-4 shrink-0 text-ink-faint"
-                  strokeWidth={1.75}
-                  aria-hidden
-                />
+                {respondable ? null : (
+                  <ChevronRight
+                    className="mt-0.5 size-4 shrink-0 text-ink-faint"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                )}
               </div>
-            </Link>
+            </Wrapper>
           </Card>
         );
       })}
     </ul>
+  );
+}
+
+/** A whole-row link on the roll-up; a plain container where a form lives inside. */
+function Wrapper({ href, children }: { href: string | null; children: React.ReactNode }) {
+  if (!href) return <div className="px-4 py-3.5">{children}</div>;
+  return (
+    <Link href={href} className="pressable block px-4 py-3.5 hover:bg-paper-sunk">
+      {children}
+    </Link>
   );
 }
