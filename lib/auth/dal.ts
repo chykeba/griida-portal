@@ -4,6 +4,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { isLive } from "../db/d1.ts";
 import { readSession, type SessionUser } from "./session.ts";
+import { studioEquivalentOf } from "./routes.ts";
 
 /**
  * The Data Access Layer.
@@ -61,13 +62,25 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
 });
 
 /**
- * Requires a signed-in client (or a studio user, who may legitimately view the
- * client lens). Redirects to sign-in, preserving where they were headed.
+ * Requires a signed-in client. Redirects to sign-in, preserving where they
+ * were headed.
+ *
+ * A studio user is sent to the same project on the studio side rather than
+ * shown the client lens. Every client query scopes through
+ * `project_client_roles`, and studio people hold no client role — so letting
+ * them through only ever produced "We can’t find that page" on a project they
+ * had just created. Symmetrical to requireStudio sending a client home: they
+ * are authenticated, just looking at the wrong door.
+ *
+ * This is not a preview. Seeing the portal as the client sees it is a real
+ * need — it's the whole ritual behind the access attestation — but it needs a
+ * deliberate lens, not a silent fall-through.
  */
 export async function requireClientView(path: string): Promise<SessionUser> {
   if (isDemoMode()) return DEMO_CLIENT_USER;
   const user = await getUser();
   if (!user) redirect(`/login?next=${encodeURIComponent(path)}`);
+  if (user.kind === "studio") redirect(studioEquivalentOf(path));
   return user;
 }
 
