@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE } from "@/lib/auth/tokens";
+import { isPublicPath } from "@/lib/auth/routes";
 
 /**
  * Proxy — what Next 16 calls what used to be Middleware.
@@ -16,14 +17,10 @@ import { SESSION_COOKIE } from "@/lib/auth/tokens";
  * redirect instead of a flash of layout.
  */
 
-const PUBLIC_PREFIXES = ["/login", "/auth/", "/_next", "/favicon.ico"];
-
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
+  if (isPublicPath(pathname)) return NextResponse.next();
 
   // Demo mode: no database configured, so there is nothing to protect and no
   // session to have. Reading env is cheap and safe here; a DB call would not be.
