@@ -77,93 +77,141 @@ function deliverableRows(project: ProjectView): Row[] {
   });
 }
 
-function milestoneRows(project: ProjectView): Row[] {
-  return project.milestones.map((m) => ({
-    id: m.id,
-    kind: "Stage" as const,
-    bucket: (m.status === "complete" ? "done" : "with-us") as Bucket,
-    name: m.name,
-    detail:
-      m.status === "complete"
-        ? "Finished"
-        : m.status === "in_progress"
-          ? "Happening now"
-          : "Still to come",
-    status:
-      m.status === "complete" ? "Done" : m.status === "in_progress" ? "In progress" : "Upcoming",
-    tone: (m.status === "complete"
-      ? "approved"
-      : m.status === "in_progress"
-        ? "calm"
-        : "neutral") as Tone,
-    due: m.targetDate ? naturalDate(m.targetDate) : null,
-    dueOverdue: false,
-    updated: null,
-    href: null,
-  }));
-}
-
 /* ==========================================================================
-   SHEET — everything on one page.
-   Reads like a printed schedule, not a spreadsheet: hairline rules, real
-   typographic hierarchy, tabular figures so the date column doesn’t jitter.
+   SCHEDULE — one row per piece of work, ordered by when it's due.
+
+   This is the view that replaces the studio's hand-kept delivery spreadsheet,
+   and it keeps that sheet's shape on purpose: name, date, status, sorted by
+   date, colour that means something. People already know how to read it.
+
+   What it does differently is that nothing here is typed twice. A row moves
+   because the work moved.
    ========================================================================== */
 
-export function SheetView({
+interface ScheduleRow {
+  id: string;
+  name: string;
+  typeName: string;
+  status: string;
+  meaning: string;
+  tone: Tone;
+  due: string | null;
+  dueShort: string | null;
+  overdue: boolean;
+  done: boolean;
+  href: string | null;
+}
+
+function scheduleRows(project: ProjectView, now: Date): ScheduleRow[] {
+  const rows = project.deliverables.map((d) => {
+    const copy = deliverableCopy(d.status);
+    const done = d.status === "approved" || d.status === "delivered";
+    const due = d.dueOn ? deadline(d.dueOn, now, "This") : null;
+    return {
+      id: d.id,
+      name: d.name,
+      typeName: d.typeName,
+      status: copy.label,
+      meaning: copy.meaning,
+      // Late only counts while it's still outstanding. Something approved last
+      // week that slipped its date is finished, and colouring it red would
+      // make the view cry wolf.
+      tone: (done
+        ? "approved"
+        : due?.isOverdue
+          ? "alert"
+          : copy.tone === "caution"
+            ? "caution"
+            : "neutral") as Tone,
+      due: d.dueOn,
+      dueShort: due ? (due.isOverdue ? due.short : naturalDate(d.dueOn!, now)) : null,
+      overdue: Boolean(due?.isOverdue) && !done,
+      done,
+      href: d.status === "in_review" ? `/p/${project.slug}/review/${d.id}` : null,
+    };
+  });
+
+  // Undated work sits at the end rather than being hidden — it's still real,
+  // it just hasn't been committed to a day.
+  return rows.sort((a, b) => {
+    if (!a.due && !b.due) return a.name.localeCompare(b.name);
+    if (!a.due) return 1;
+    if (!b.due) return -1;
+    return a.due.localeCompare(b.due);
+  });
+}
+
+export function ScheduleView({
   project,
   actions,
 }: {
   project: ProjectView;
   actions: ClientActionView[];
 }) {
-  const groups: { title: string; rows: Row[] }[] = [
-    { title: "Needs you", rows: actionRows(actions) },
-    { title: "The work", rows: deliverableRows(project) },
-    { title: "Stages", rows: milestoneRows(project) },
-  ].filter((g) => g.rows.length > 0);
+  const now = new Date();
+  const rows = scheduleRows(project, now);
+  const done = rows.filter((r) => r.done).length;
+  const late = rows.filter((r) => r.overdue).length;
 
   return (
     <div className="animate-rise">
-      <p className="mb-5 max-w-[60ch] text-small leading-relaxed text-ink-soft">
-        Everything in this project on one page. Handy if you need to scan it
-        quickly, or show someone else where things stand.
-      </p>
+      {/* The honest version of a completion percentage. Counts can be checked
+          against the rows underneath; a percentage can't. */}
+      <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <p className="font-display text-lead">
+          {done} of {rows.length} {rows.length === 1 ? "piece" : "pieces"} approved
+        </p>
+        {late > 0 ? (
+          <p className="text-small text-alert">
+            {late} past its date
+          </p>
+        ) : rows.length > 0 ? (
+          <p className="text-small text-ink-soft">Everything else is on schedule</p>
+        ) : null}
+      </div>
 
-      <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
-        <table className="w-full min-w-[42rem] border-collapse text-left">
-          <thead>
-            <tr className="border-b border-rule-strong">
-              <th scope="col" className="py-2 pr-4 meta">
-                Item
-              </th>
-              <th scope="col" className="w-36 py-2 pr-4 meta">
-                Status
-              </th>
-              <th scope="col" className="w-44 py-2 pr-4 meta">
-                Date / round
-              </th>
-              <th scope="col" className="w-36 py-2 meta">
-                Last touched
-              </th>
-            </tr>
-          </thead>
+      {actions.length > 0 ? (
+        <p className="mb-5 rounded-md border border-caution/40 bg-caution/10 px-3 py-2 text-small">
+          {actions.length === 1
+            ? "There’s one thing we need from you"
+            : `There are ${actions.length} things we need from you`}{" "}
+          — see <Link href="#needs-you" className="underline underline-offset-4">Needs you</Link>{" "}
+          on the Story view.
+        </p>
+      ) : null}
 
-          {groups.map((group) => (
-            <tbody key={group.title} className="stagger">
-              <tr>
-                <th
-                  colSpan={4}
-                  scope="colgroup"
-                  className="pt-7 pb-1.5 text-left font-display text-lead font-semibold"
-                >
-                  {group.title}
+      {rows.length === 0 ? (
+        <p className="max-w-[52ch] leading-relaxed text-ink-soft">
+          Nothing is scheduled yet. As soon as we plan the pieces of this
+          project, they’ll show up here with their dates.
+        </p>
+      ) : (
+        <div className="-mx-5 overflow-x-auto px-5 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[34rem] border-collapse text-left">
+            <caption className="sr-only">
+              Every piece of work in {project.name}, ordered by when it’s due
+            </caption>
+            <thead>
+              <tr className="border-b border-rule-strong">
+                <th scope="col" className="py-2 pr-4 meta">
+                  Item
+                </th>
+                <th scope="col" className="w-36 py-2 pr-4 meta">
+                  Due
+                </th>
+                <th scope="col" className="w-44 py-2 meta">
+                  Status
                 </th>
               </tr>
-
-              {group.rows.map((row) => (
+            </thead>
+            <tbody className="stagger">
+              {rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b border-rule align-top transition-colors duration-150 hover:bg-paper-sunk"
+                  className={[
+                    "border-b border-rule align-top transition-colors duration-150",
+                    row.overdue ? "bg-alert/[0.06]" : "hover:bg-paper-sunk",
+                  ].join(" ")}
                 >
                   <td className="py-3 pr-4">
                     {row.href ? (
@@ -171,38 +219,69 @@ export function SheetView({
                         <span className="font-medium underline decoration-rule-strong underline-offset-4 group-hover:decoration-ink">
                           {row.name}
                         </span>
-                        <ArrowUpRight className="mt-1 size-3.5 shrink-0 text-ink-faint" strokeWidth={1.75} aria-hidden />
+                        <ArrowUpRight
+                          className="mt-0.5 size-3.5 shrink-0 text-ink-faint transition-transform group-hover:-translate-y-0.5"
+                          strokeWidth={2}
+                          aria-hidden
+                        />
                       </Link>
                     ) : (
                       <span className="font-medium">{row.name}</span>
                     )}
-                    {row.detail ? (
-                      <span className="mt-0.5 block max-w-[46ch] text-small leading-relaxed text-ink-soft">
-                        {row.detail}
+                    <span className="meta block">{row.typeName}</span>
+                  </td>
+
+                  <td
+                    className={[
+                      "py-3 pr-4 text-small tabular-nums",
+                      row.overdue ? "font-medium text-alert" : "text-ink-soft",
+                    ].join(" ")}
+                  >
+                    {row.dueShort ?? <span className="text-ink-faint">Not dated yet</span>}
+                  </td>
+
+                  <td className="py-3">
+                    <span className="flex items-start gap-1.5">
+                      <StatusDot tone={row.tone} className="mt-[0.4rem]" />
+                      <span>
+                        <span className="text-small font-medium">{row.status}</span>
+                        <span className="meta block">{row.meaning}</span>
                       </span>
-                    ) : null}
-                  </td>
-
-                  <td className="py-3 pr-4">
-                    <span className="inline-flex items-center gap-2 text-small">
-                      <StatusDot tone={row.tone} />
-                      {row.status}
                     </span>
-                  </td>
-
-                  <td className={`py-3 pr-4 meta ${row.dueOverdue ? "text-alert" : "text-ink-soft"}`}>
-                    {row.due ?? "—"}
-                  </td>
-
-                  <td className="py-3 meta">
-                    {row.updated ?? "—"}
                   </td>
                 </tr>
               ))}
             </tbody>
-          ))}
-        </table>
-      </div>
+          </table>
+        </div>
+      )}
+
+      {project.milestones.length > 0 ? (
+        <div className="mt-8 border-t border-rule pt-4">
+          <Label className="mb-2 block">Stages</Label>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
+            {project.milestones.map((m) => (
+              <li key={m.id} className="flex items-center gap-1.5 text-small">
+                <StatusDot
+                  tone={
+                    m.status === "complete"
+                      ? "approved"
+                      : m.status === "in_progress"
+                        ? "calm"
+                        : "neutral"
+                  }
+                />
+                <span className={m.status === "in_progress" ? "font-medium" : "text-ink-soft"}>
+                  {m.name}
+                </span>
+                {m.targetDate ? (
+                  <span className="meta tabular-nums">{naturalDate(m.targetDate, now)}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }

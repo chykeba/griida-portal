@@ -42,6 +42,8 @@ export interface DeliverableView {
   reviewLink: Link | null;
   updatedAt: string;
   summary: string | null;
+  /** When it's due. Null means it's in the project but not yet dated. */
+  dueOn: string | null;
 }
 
 export interface ClientActionView {

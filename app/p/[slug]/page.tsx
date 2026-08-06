@@ -3,7 +3,7 @@ import { AppHeader, Footer, Page, type ShellWidth } from "@/components/shell";
 import { WaitingList } from "@/components/waiting";
 import { DeliverableCard, LinkRow } from "@/components/deliverable";
 import { Timeline } from "@/components/timeline";
-import { BoardView, SheetView, SideRail } from "@/components/views";
+import { BoardView, ScheduleView, SideRail } from "@/components/views";
 import { ViewSwitcher, parseViewMode } from "@/components/view-switcher";
 import {
   Badge,
@@ -72,8 +72,8 @@ export default async function ProjectPage({
           <ViewSwitcher slug={project.slug} active={view} />
         </div>
 
-        {view === "sheet" ? (
-          <SheetView project={project} actions={waiting} />
+        {view === "schedule" ? (
+          <ScheduleView project={project} actions={waiting} />
         ) : view === "board" ? (
           <BoardView project={project} actions={waiting} />
         ) : (

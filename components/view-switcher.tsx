@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { Columns3, Rows3, ScrollText } from "lucide-react";
+import { CalendarDays, Columns3, Rows3, ScrollText } from "lucide-react";
 
-export type ProjectViewMode = "story" | "sheet" | "board";
+export type ProjectViewMode = "story" | "schedule" | "board";
 
 export function parseViewMode(value?: string | string[]): ProjectViewMode {
   const v = Array.isArray(value) ? value[0] : value;
-  return v === "sheet" || v === "board" ? v : "story";
+  // "sheet" is the old name for the schedule. Links get pasted into email and
+  // outlive renames, so it keeps working.
+  if (v === "sheet") return "schedule";
+  return v === "schedule" || v === "board" ? v : "story";
 }
 
 const MODES: {
@@ -15,7 +18,7 @@ const MODES: {
   Icon: typeof Rows3;
 }[] = [
   { id: "story", label: "Story", hint: "The narrative — what's happened and what's next", Icon: ScrollText },
-  { id: "sheet", label: "Sheet", hint: "Everything on one page, as a tracking table", Icon: Rows3 },
+  { id: "schedule", label: "Schedule", hint: "Every piece of work and when it's due", Icon: CalendarDays },
   { id: "board", label: "Board", hint: "Each piece of work, grouped by where it stands", Icon: Columns3 },
 ];
 

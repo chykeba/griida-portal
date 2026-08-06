@@ -16,6 +16,7 @@ import {
   HealthControl,
 } from "@/components/studio/project-controls";
 import { closeoutCheck } from "@/lib/db/closeout";
+import { ScheduleBuilder } from "@/components/studio/schedule-builder";
 import { query } from "@/lib/db/d1";
 import { isDemoMode } from "@/lib/auth/dal";
 import { requireStudio } from "@/lib/auth/dal";
@@ -56,6 +57,16 @@ export default async function StudioProjectPage({
   // What still stands between this project and done (§5b — the SOP's whole
   // point is that this question gets asked at the end, not just per delivery).
   const closeout = isDemoMode() ? null : await closeoutCheck(project.id);
+  // The delivery schedule — every item, dated or not. Ordered the way the
+  // client will see it so the two views can't drift apart.
+  const scheduleItems = isDemoMode()
+    ? []
+    : await query<{ id: string; name: string; status: string; due_on: string | null }>(
+        `SELECT id, name, status, due_on FROM deliverables
+          WHERE project_id = ?1
+          ORDER BY due_on IS NULL, due_on, name`,
+        [project.id],
+      );
   // Requests including answered ones, so the loop can be closed here.
   const requests = isDemoMode()
     ? []
@@ -316,6 +327,21 @@ export default async function StudioProjectPage({
                       slug={project.slug}
                       clients={clients}
                       canManage={can(me, "manage_project_clients")}
+                    />
+                  </Card>
+
+                  <h2 className="label mb-2 text-ink-soft">Delivery schedule</h2>
+                  <Card className="mb-6 px-4 py-4">
+                    <ScheduleBuilder
+                      projectId={project.id}
+                      slug={project.slug}
+                      canEdit={can(me, "create_project")}
+                      items={scheduleItems.map((i) => ({
+                        id: i.id,
+                        name: i.name,
+                        status: i.status,
+                        dueOn: i.due_on,
+                      }))}
                     />
                   </Card>
 

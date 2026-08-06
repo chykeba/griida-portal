@@ -483,3 +483,127 @@ test("a closed project stays visible to the client", async () => {
     "closing is not archiving — the client keeps the record they were given",
   );
 });
+
+/* -------------------------------------------------------------------------- */
+/* The delivery schedule — and the one place it changes what a client sees     */
+/* -------------------------------------------------------------------------- */
+
+test("an undated draft stays invisible; dating it puts it on the schedule", async () => {
+  const { deliverablesForUser } = await import("./client-queries.ts");
+  const { addScheduleItems, parseScheduleLines } = await import("./schedule-writes.ts");
+
+  await addScheduleItems({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    lines: parseScheduleLines("Undated page\nDated page\t2026-09-01"),
+  });
+
+  const names = (await deliverablesForUser("u_tunde", "prj_brand")).map((d) => d.name);
+  assert.ok(
+    !names.includes("Undated page"),
+    "a draft with no date is scratch work and stays internal",
+  );
+  assert.ok(
+    names.includes("Dated page"),
+    "committing to a date is what puts it on the client's plan",
+  );
+});
+
+test("a scheduled item carries a name, a date and a status — and no link", async () => {
+  const { deliverablesForUser } = await import("./client-queries.ts");
+  const { addScheduleItems, parseScheduleLines } = await import("./schedule-writes.ts");
+
+  await addScheduleItems({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    lines: parseScheduleLines("Homepage\t2026-09-01"),
+  });
+
+  const row = (await deliverablesForUser("u_tunde", "prj_brand")).find(
+    (d) => d.name === "Homepage",
+  )!;
+  assert.equal(row.status, "draft");
+  assert.equal(row.due_on, "2026-09-01");
+  assert.equal(row.review_url, null, "nothing has been sent, so there is nothing to open");
+  assert.equal(row.client_access_ok, null);
+});
+
+test("the schedule is still scoped to the client's own projects", async () => {
+  const { deliverablesForUser } = await import("./client-queries.ts");
+  const { addScheduleItems, parseScheduleLines } = await import("./schedule-writes.ts");
+
+  await addScheduleItems({
+    projectId: "prj_site",
+    actorId: "u_chike",
+    lines: parseScheduleLines("Site page\t2026-09-01"),
+  });
+
+  // Zainab has a role on prj_brand only.
+  const zainab = await deliverablesForUser("u_zainab", "prj_site");
+  assert.equal(zainab.length, 0, "widening draft visibility must not widen project scope");
+});
+
+test("pasting the same list twice does not double the schedule", async () => {
+  const { addScheduleItems, parseScheduleLines } = await import("./schedule-writes.ts");
+  const list = "Homepage\t2026-09-01\nAbout\t2026-09-02";
+
+  const first = await addScheduleItems({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    lines: parseScheduleLines(list),
+  });
+  assert.equal(first.added, 2);
+
+  const second = await addScheduleItems({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    lines: parseScheduleLines(`${list}\nContact\t2026-09-03`),
+  });
+  assert.equal(second.added, 1, "only the new line is added");
+  assert.deepEqual(second.skipped.sort(), ["About", "Homepage"]);
+  assert.equal(h.count("deliverables", "project_id='prj_brand' AND name='Homepage'"), 1);
+});
+
+test("a due date can only be moved from inside its own project", async () => {
+  const { addScheduleItems, parseScheduleLines, setDueDate } = await import("./schedule-writes.ts");
+  await addScheduleItems({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    lines: parseScheduleLines("Homepage\t2026-09-01"),
+  });
+  const id = h.one<{ id: string }>(
+    "SELECT id FROM deliverables WHERE name='Homepage'",
+  )!.id;
+
+  await assert.rejects(
+    () => setDueDate({ deliverableId: id, projectId: "prj_site", dueOn: "2027-01-01" }),
+    /isn’t part of this project/,
+  );
+  assert.equal(
+    h.one<{ due_on: string }>("SELECT due_on FROM deliverables WHERE id=?", id)?.due_on,
+    "2026-09-01",
+  );
+
+  await setDueDate({ deliverableId: id, projectId: "prj_brand", dueOn: "2026-09-15" });
+  assert.equal(
+    h.one<{ due_on: string }>("SELECT due_on FROM deliverables WHERE id=?", id)?.due_on,
+    "2026-09-15",
+  );
+});
+
+test("scheduled items count toward closing the project", async () => {
+  const { closeoutCheck } = await import("./closeout.ts");
+  const { addScheduleItems, parseScheduleLines } = await import("./schedule-writes.ts");
+  settleBrandProject();
+
+  await addScheduleItems({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    lines: parseScheduleLines("Homepage\t2026-09-01"),
+  });
+
+  const check = (await closeoutCheck("prj_brand"))!;
+  assert.equal(check.ok, false, "a planned page nobody delivered is unfinished work");
+  assert.equal(check.blockers[0]?.kind, "deliverable");
+  assert.ok(check.blockers[0].items.some((i) => i.startsWith("Homepage")));
+});

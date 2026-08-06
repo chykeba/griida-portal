@@ -35,7 +35,13 @@ const realFetch = globalThis.fetch;
 
 export function createHarness(options: { seed?: boolean } = {}): Harness {
   const db = new DatabaseSync(":memory:");
-  db.exec(fs.readFileSync(path.join(ROOT, "db/migrations/0001_init.sql"), "utf8"));
+  // Every migration, in order — so the tests run against the schema production
+  // actually has, and a migration that doesn't apply cleanly fails here first.
+  for (const file of fs.readdirSync(path.join(ROOT, "db/migrations")).sort()) {
+    if (file.endsWith(".sql")) {
+      db.exec(fs.readFileSync(path.join(ROOT, "db/migrations", file), "utf8"));
+    }
+  }
   if (options.seed !== false) {
     db.exec(fs.readFileSync(path.join(ROOT, "db/seed/0001_demo.sql"), "utf8"));
     db.exec(fs.readFileSync(path.join(ROOT, "db/seed/0002_templates.sql"), "utf8"));

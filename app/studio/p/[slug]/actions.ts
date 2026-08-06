@@ -17,6 +17,7 @@ import {
 import { notifyReviewReady, notifyUpdatePublished } from "@/lib/db/notify";
 import { attestClientAccess, checkReachable, setReviewLink } from "@/lib/db/link-writes";
 import { closeProject, reopenProject } from "@/lib/db/closeout";
+import { addScheduleItems, parseScheduleLines, setDueDate } from "@/lib/db/schedule-writes";
 import {
   acceptClientAction,
   addClientToProject,
@@ -386,4 +387,72 @@ export async function closeProjectAction(
   revalidatePath(`/p/${slug}`);
   revalidatePath("/studio");
   return { error: null };
+}
+
+/* -------------------------------------------------------------------------- */
+/* The delivery schedule                                                      */
+/* -------------------------------------------------------------------------- */
+
+export interface ScheduleState {
+  error: string | null;
+  ok: string | null;
+}
+
+/**
+ * Paste a list of items and dates.
+ *
+ * Reports back what it couldn’t read rather than adding a partial schedule
+ * quietly — a missing row on a client-facing plan is expensive to notice late.
+ */
+export async function addScheduleAction(
+  _prev: ScheduleState,
+  formData: FormData,
+): Promise<ScheduleState> {
+  const slug = String(formData.get("slug") ?? "");
+  const { me, projectId } = await studioGate(slug);
+  if (isDemoMode()) return { error: DEMO_NOTE, ok: null };
+
+  try {
+    assertCan(me, "create_project");
+    const lines = parseScheduleLines(String(formData.get("items") ?? ""));
+    const unreadable = lines.filter((l) => l.problem);
+    if (unreadable.length > 0) {
+      return {
+        error:
+          `Couldn’t read the date on ${unreadable.length === 1 ? "this line" : "these lines"}: ` +
+          `${unreadable.map((l) => l.name).join(", ")}. Fix ${unreadable.length === 1 ? "it" : "them"} ` +
+          `or drop the date — an item without one still gets added.`,
+        ok: null,
+      };
+    }
+
+    const { added, skipped } = await addScheduleItems({
+      projectId: sameProject(formData.get("projectId"), projectId),
+      actorId: me.id,
+      lines,
+    });
+
+    const note = skipped.length > 0 ? ` ${skipped.length} already there, left alone.` : "";
+    return { error: null, ok: `Added ${added} item${added === 1 ? "" : "s"}.${note}` };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "That didn’t work.", ok: null };
+  } finally {
+    revalidatePath(`/studio/p/${slug}`);
+    revalidatePath(`/p/${slug}`);
+  }
+}
+
+/** Moving one date. */
+export async function setDueDateAction(formData: FormData): Promise<void> {
+  const slug = String(formData.get("slug") ?? "");
+  const { me, projectId } = await studioGate(slug);
+  if (isDemoMode()) return;
+  assertCan(me, "create_project");
+  await setDueDate({
+    deliverableId: String(formData.get("deliverableId") ?? ""),
+    projectId: sameProject(formData.get("projectId"), projectId),
+    dueOn: String(formData.get("dueOn") ?? "") || null,
+  });
+  revalidatePath(`/studio/p/${slug}`);
+  revalidatePath(`/p/${slug}`);
 }

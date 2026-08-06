@@ -56,6 +56,7 @@ function toDeliverable(row: DeliverableRow, roundsIncluded: number): Deliverable
     status: row.status as DeliverableView["status"],
     round: row.current_round,
     roundsIncluded,
+    dueOn: row.due_on,
     requiresConsideredReview: bool(row.requires_considered_review),
     reviewLink: row.review_url
       ? {

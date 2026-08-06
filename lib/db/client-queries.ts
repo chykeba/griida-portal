@@ -97,16 +97,31 @@ export interface DeliverableRow {
   review_label: string | null;
   best_on_desktop: number | null;
   client_access_ok: number | null;
+  due_on: string | null;
 }
 
 /**
- * Drafts are excluded here — that exclusion is the publish gate as far as the
- * client is concerned, and it used to be an RLS policy.
+ * What the client can see of the work.
+ *
+ * A draft is internal — that exclusion is the publish gate as far as the client
+ * is concerned, and it used to be an RLS policy. With one deliberate exception:
+ * **a draft that has been given a due date is on the schedule.**
+ *
+ * That exception is the whole point of the schedule view. The artifact this
+ * replaces is a page-by-page plan whose most common row is "Not started, due
+ * the 12th" — a client who can only see work already sent to them has no plan,
+ * just a history. Dating a deliverable is the act of committing to it publicly;
+ * an undated draft is still someone's scratch row and stays invisible.
+ *
+ * Note what does NOT follow from being on the schedule: the review link is
+ * joined through `deliverable_versions`, which a draft has none of, so a
+ * scheduled-but-unsent row carries a name, a date and a status and nothing
+ * else. The publish gate is untouched.
  */
 export async function deliverablesForUser(userId: string, projectId: string) {
   return queryAsClient<DeliverableRow>(
     `SELECT d.id, d.name, d.type_name, d.status, d.summary, d.current_round,
-            d.requires_considered_review, d.state_changed_at,
+            d.requires_considered_review, d.state_changed_at, d.due_on,
             l.url AS review_url, l.label AS review_label,
             l.best_on_desktop, l.client_access_ok
        FROM deliverables d
@@ -116,8 +131,8 @@ export async function deliverablesForUser(userId: string, projectId: string) {
        LEFT JOIN links l ON l.id = v.review_link_id
       WHERE r.user_id = ?1
         AND d.project_id = ?2
-        AND d.status != 'draft'
-      ORDER BY d.created_at DESC`,
+        AND (d.status != 'draft' OR d.due_on IS NOT NULL)
+      ORDER BY d.due_on IS NULL, d.due_on, d.created_at DESC`,
     [userId, projectId],
     "deliverablesForUser",
   );
