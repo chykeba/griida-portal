@@ -16,6 +16,7 @@ import {
 } from "@/lib/db/checklist-writes";
 import { notifyReviewReady, notifyUpdatePublished } from "@/lib/db/notify";
 import { attestClientAccess, checkReachable, setReviewLink } from "@/lib/db/link-writes";
+import { closeProject, reopenProject } from "@/lib/db/closeout";
 import {
   acceptClientAction,
   addClientToProject,
@@ -347,5 +348,42 @@ export async function setHealthAction(
   }
   revalidatePath(`/studio/p/${slug}`);
   revalidatePath(`/p/${slug}`);
+  return { error: null };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Closing a project                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mark done, or reopen.
+ *
+ * The gate warns; it doesn't refuse. closeProject insists on a written reason
+ * when anything is outstanding, and records what was outstanding at the time.
+ */
+export async function closeProjectAction(
+  _prev: ItemState,
+  formData: FormData,
+): Promise<ItemState> {
+  const slug = String(formData.get("slug") ?? "");
+  const { me, projectId } = await studioGate(slug);
+  if (isDemoMode()) return { error: DEMO_NOTE };
+
+  try {
+    assertCan(me, "close_project");
+    const scope = sameProject(formData.get("projectId"), projectId);
+    const note = String(formData.get("note") ?? "");
+    if (String(formData.get("op") ?? "") === "reopen") {
+      await reopenProject({ projectId: scope, actorId: me.id, note });
+    } else {
+      await closeProject({ projectId: scope, actorId: me.id, note });
+    }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "That didn’t work." };
+  }
+
+  revalidatePath(`/studio/p/${slug}`);
+  revalidatePath(`/p/${slug}`);
+  revalidatePath("/studio");
   return { error: null };
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Loader2, Plus, TriangleAlert, UserPlus, X } from "lucide-react";
+import { CircleCheck, Loader2, Plus, RotateCcw, TriangleAlert, UserPlus, X } from "lucide-react";
 import {
   addClientAction,
   askClientAction,
+  closeProjectAction,
   removeClientAction,
   resolveActionAction,
   setHealthAction,
@@ -304,6 +305,165 @@ export function ClientRequests({
           className="pressable inline-flex min-h-9 items-center gap-1.5 rounded-md border border-rule-interactive px-3 text-small font-medium">
           <Plus className="size-3.5" strokeWidth={2} aria-hidden />
           Ask for something
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ========================================================================== */
+
+export interface CloseoutBlockerView {
+  kind: string;
+  summary: string;
+  items: string[];
+}
+
+/**
+ * Finishing a project — the moment the SOP was built for.
+ *
+ * It shows what's outstanding and then lets you close anyway. That's
+ * deliberate: a gate that can't be passed gets routed around, and then the
+ * truth about a project lives somewhere this app can't see. What it insists on
+ * instead is a sentence, which costs ten seconds and is the only thing that
+ * makes a decision legible six months later.
+ */
+export function CloseoutControl({
+  projectId,
+  slug,
+  status,
+  blockers,
+  canClose,
+}: {
+  projectId: string;
+  slug: string;
+  status: string;
+  blockers: CloseoutBlockerView[];
+  canClose: boolean;
+}) {
+  const [state, action, pending] = useActionState(closeProjectAction, idle);
+  const [open, setOpen] = useState(false);
+  const clean = blockers.length === 0;
+  const closed = status === "done";
+
+  if (closed) {
+    return (
+      <div>
+        <p className="mb-2 flex items-center gap-1.5 text-small text-approved">
+          <CircleCheck className="size-4" strokeWidth={2} aria-hidden />
+          Closed. The client can still see everything.
+        </p>
+        {canClose ? (
+          <form action={action} className="space-y-2">
+            <input type="hidden" name="slug" value={slug} />
+            <input type="hidden" name="projectId" value={projectId} />
+            <input type="hidden" name="op" value="reopen" />
+            <input
+              name="note"
+              required
+              placeholder="Why is it reopening?"
+              className="min-h-10 w-full rounded-md border border-rule-interactive bg-paper-raised px-3 text-small outline-none focus:border-ink"
+            />
+            <Meta className="block">The client sees this reopen on their timeline.</Meta>
+            <button
+              type="submit"
+              disabled={pending}
+              className="pressable inline-flex min-h-9 items-center gap-1.5 rounded-md border border-rule-interactive px-3 text-small font-medium disabled:opacity-50"
+            >
+              {pending ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <RotateCcw className="size-3.5" strokeWidth={2} aria-hidden />
+              )}
+              Reopen it
+            </button>
+            <Err state={state} />
+          </form>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (!canClose) {
+    return (
+      <Meta className="block">
+        {clean
+          ? "Everything’s settled. A project manager can close this."
+          : `${blockers.length} thing${blockers.length === 1 ? "" : "s"} still outstanding.`}
+      </Meta>
+    );
+  }
+
+  return (
+    <div>
+      {clean ? (
+        <p className="mb-3 flex items-start gap-1.5 text-small text-approved">
+          <CircleCheck className="mt-0.5 size-4 shrink-0" strokeWidth={2} aria-hidden />
+          Everything’s approved, ticked and settled. Ready to close.
+        </p>
+      ) : (
+        <div className="mb-3">
+          <p className="mb-2 text-small text-caution">
+            Not everything’s finished. You can still close it — you’ll just be asked why.
+          </p>
+          <ul className="space-y-2">
+            {blockers.map((b) => (
+              <li key={b.kind}>
+                <p className="text-small font-medium">{b.summary}</p>
+                <ul className="mt-0.5 space-y-0.5">
+                  {b.items.slice(0, 4).map((item) => (
+                    <li key={item} className="meta pl-3 -indent-2 before:content-['·_']">
+                      {item}
+                    </li>
+                  ))}
+                  {b.items.length > 4 ? (
+                    <li className="meta pl-1">and {b.items.length - 4} more</li>
+                  ) : null}
+                </ul>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {open ? (
+        <form action={action} className="space-y-2 border-t border-rule pt-3">
+          <input type="hidden" name="slug" value={slug} />
+          <input type="hidden" name="projectId" value={projectId} />
+          <textarea
+            name="note"
+            rows={2}
+            required={!clean}
+            placeholder={clean ? "Anything worth recording? (optional)" : "Why close it with these outstanding?"}
+            className="w-full rounded-md border border-rule-interactive bg-paper-raised px-3 py-2 text-small leading-relaxed outline-none focus:border-ink"
+          />
+          <Meta className="block">
+            {clean
+              ? "Goes on the record with your name and today’s date."
+              : "Recorded with your name, alongside a copy of what was outstanding."}
+          </Meta>
+          <button
+            type="submit"
+            disabled={pending}
+            className="pressable inline-flex min-h-10 items-center gap-2 rounded-md bg-ink px-4 text-small font-medium text-paper-raised disabled:opacity-50"
+          >
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <CircleCheck className="size-4" strokeWidth={1.75} aria-hidden />
+            )}
+            Mark it done
+          </button>
+          <Err state={state} />
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="pressable inline-flex min-h-9 items-center gap-1.5 rounded-md border border-rule-interactive px-3 text-small font-medium"
+        >
+          <CircleCheck className="size-3.5" strokeWidth={2} aria-hidden />
+          Close this project
         </button>
       )}
     </div>

@@ -25,7 +25,9 @@ export type Capability =
   /** Grant or revoke a client's sight of a project. */
   | "manage_project_clients"
   /** Assert a client can open a review link — the one gate with no override. */
-  | "attest_link_access";
+  | "attest_link_access"
+  /** Mark a project done, or reopen it. */
+  | "close_project";
 
 const BY_ROLE: Record<StudioRole, Capability[]> = {
   super_admin: [
@@ -37,6 +39,7 @@ const BY_ROLE: Record<StudioRole, Capability[]> = {
     "waive_checklist_item",
     "manage_project_clients",
     "attest_link_access",
+    "close_project",
   ],
   admin_pm: [
     "create_project",
@@ -45,6 +48,7 @@ const BY_ROLE: Record<StudioRole, Capability[]> = {
     "waive_checklist_item",
     "manage_project_clients",
     "attest_link_access",
+    "close_project",
   ],
   lead: ["publish_update", "attest_link_access"],
   member: [],

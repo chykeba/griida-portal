@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { magicLinkEmail, reviewReadyEmail, updatePublishedEmail } from "./content.ts";
+import {
+  magicLinkEmail,
+  reviewReadyEmail,
+  teamInviteEmail,
+  updatePublishedEmail,
+} from "./content.ts";
 
 const URL = "https://portal.griida.com/auth/verify?token=abc123&next=%2Fp%2Fwebsite";
 
@@ -111,4 +116,37 @@ test("the review email leads with what it is, not with the studio", () => {
   assert.equal(subject, "Ready for you: Three logo directions");
   assert.match(text, /Hi Tunde/);
   assert.ok(text.includes(URL));
+});
+
+test("the invite says who added you, what you can do, and where to go", () => {
+  const { subject, text, html } = teamInviteEmail({
+    firstName: "Ada",
+    invitedBy: "Chike Adebayo",
+    roleLabel: "Lead",
+    roleBlurb: "Works on projects and countersigns others’ checklist items.",
+    loginUrl: "https://griida-portal.vercel.app/login",
+  });
+
+  assert.match(subject, /Chike Adebayo/, "the subject names a person, not a system");
+  for (const part of [text, html]) {
+    assert.match(part, /Chike Adebayo/);
+    assert.match(part, /countersigns/, "what the role actually means, not just its name");
+    assert.match(part, /griida-portal\.vercel\.app\/login/);
+  }
+});
+
+test("the invite carries no sign-in token", () => {
+  const { text, html } = teamInviteEmail({
+    firstName: "Ada",
+    invitedBy: "Chike",
+    roleLabel: "Lead",
+    roleBlurb: "Works on projects.",
+    loginUrl: "https://griida-portal.vercel.app/login",
+  });
+  // An invite is read whenever the inbox is next opened; a 60-minute magic
+  // link would usually be dead by then. They request their own.
+  for (const part of [text, html]) {
+    assert.ok(!/\/auth\/verify/.test(part), "no verify URL");
+    assert.ok(!/token=/.test(part), "no token in an email with an unbounded read time");
+  }
 });

@@ -329,3 +329,157 @@ test("a client action can only be resolved from its own project", async () => {
     "accepted",
   );
 });
+
+/* -------------------------------------------------------------------------- */
+/* Closing a project — the reason the SOP exists                               */
+/* -------------------------------------------------------------------------- */
+
+/** Settle everything on prj_brand so the gate has nothing left to object to. */
+function settleBrandProject() {
+  h.db.exec(`UPDATE deliverables SET status = 'approved' WHERE project_id = 'prj_brand'`);
+  h.db.exec(`UPDATE checklist_items SET state = 'waived', waived_reason = 'test'
+              WHERE checklist_id IN (SELECT id FROM checklists WHERE project_id = 'prj_brand')`);
+  h.db.exec(`UPDATE client_actions SET status = 'accepted' WHERE project_id = 'prj_brand'`);
+  h.db.exec(`UPDATE tasks SET status = 'done' WHERE project_id = 'prj_brand'`);
+}
+
+test("the gate names what is actually outstanding", async () => {
+  const { closeoutCheck } = await import("./closeout.ts");
+  const check = (await closeoutCheck("prj_brand"))!;
+
+  assert.equal(check.ok, false);
+  const kinds = check.blockers.map((b) => b.kind);
+  assert.deepEqual(
+    [...kinds].sort(),
+    ["checklist", "client", "deliverable", "task"],
+    "all four sources of unfinished work are checked",
+  );
+  for (const b of check.blockers) {
+    assert.ok(b.items.length > 0, `${b.kind} must list the specific items, not just a count`);
+  }
+});
+
+test("closing with things outstanding is refused without a reason, allowed with one", async () => {
+  const { closeProject, closeoutCheck } = await import("./closeout.ts");
+
+  await assert.rejects(
+    () => closeProject({ projectId: "prj_brand", actorId: "u_chike", note: "  " }),
+    /say why/i,
+    "a warn-not-block gate still has to cost a sentence",
+  );
+  assert.equal(
+    h.one<{ status: string }>("SELECT status FROM projects WHERE id='prj_brand'")?.status,
+    "active",
+    "the refusal must not have half-closed it",
+  );
+
+  await closeProject({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    note: "Client signed off verbally; remaining items are internal tidying.",
+  });
+
+  const row = h.one<{ status: string; actual_end_on: string }>(
+    "SELECT status, actual_end_on FROM projects WHERE id='prj_brand'",
+  );
+  assert.equal(row?.status, "done");
+  assert.ok(row?.actual_end_on, "closing dates the project");
+  assert.equal((await closeoutCheck("prj_brand"))!.status, "done");
+});
+
+test("what was outstanding is copied into the record, not referenced", async () => {
+  const { closeProject } = await import("./closeout.ts");
+  await closeProject({ projectId: "prj_brand", actorId: "u_chike", note: "Shipping anyway." });
+
+  const event = h.one<{ payload: string; actor_id: string; visibility: string }>(
+    "SELECT payload, actor_id, visibility FROM activity_events WHERE kind='project.closed'",
+  );
+  assert.equal(event?.actor_id, "u_chike", "a decision has an author");
+  assert.equal(event?.visibility, "client", "the client is told their project closed");
+
+  const payload = JSON.parse(event!.payload);
+  assert.equal(payload.clean, false);
+  assert.equal(payload.note, "Shipping anyway.");
+  assert.ok(payload.outstanding.length > 0);
+
+  // The underlying rows keep moving. The record of what was known when someone
+  // signed this off must not move with them.
+  h.db.exec(`UPDATE tasks SET status = 'done' WHERE project_id = 'prj_brand'`);
+  const after = JSON.parse(
+    h.one<{ payload: string }>(
+      "SELECT payload FROM activity_events WHERE kind='project.closed'",
+    )!.payload,
+  );
+  assert.deepEqual(after.outstanding, payload.outstanding, "the snapshot is frozen");
+});
+
+test("a clean project closes without needing an excuse", async () => {
+  const { closeProject, closeoutCheck } = await import("./closeout.ts");
+  settleBrandProject();
+
+  const check = (await closeoutCheck("prj_brand"))!;
+  assert.equal(check.ok, true, `expected nothing outstanding, got ${JSON.stringify(check.blockers)}`);
+
+  await closeProject({ projectId: "prj_brand", actorId: "u_chike", note: "" });
+  assert.equal(
+    h.one<{ status: string }>("SELECT status FROM projects WHERE id='prj_brand'")?.status,
+    "done",
+  );
+  assert.equal(JSON.parse(h.one<{ payload: string }>(
+    "SELECT payload FROM activity_events WHERE kind='project.closed'",
+  )!.payload).clean, true);
+});
+
+test("an item awaiting a countersign is not finished", async () => {
+  const { closeoutCheck } = await import("./closeout.ts");
+  settleBrandProject();
+  // ci_5 requires a countersign. Ticked by Femi, nobody has signed it off.
+  h.db.exec(`UPDATE checklist_items SET state='checked', checked_by='u_femi', waived_reason=NULL
+              WHERE id='ci_5'`);
+
+  const check = (await closeoutCheck("prj_brand"))!;
+  assert.equal(check.ok, false, "ticked-but-unsigned is the case the SOP exists for");
+  assert.equal(check.blockers[0]?.kind, "checklist");
+});
+
+test("closing twice is refused, and reopening needs a reason the client will read", async () => {
+  const { closeProject, reopenProject } = await import("./closeout.ts");
+  settleBrandProject();
+  await closeProject({ projectId: "prj_brand", actorId: "u_chike", note: "" });
+
+  await assert.rejects(
+    () => closeProject({ projectId: "prj_brand", actorId: "u_ada", note: "again" }),
+    /already closed/i,
+  );
+  assert.equal(h.count("activity_events", "kind = 'project.closed'"), 1);
+
+  await assert.rejects(
+    () => reopenProject({ projectId: "prj_brand", actorId: "u_chike", note: "" }),
+    /say why/i,
+  );
+
+  await reopenProject({
+    projectId: "prj_brand",
+    actorId: "u_chike",
+    note: "Client came back on the icon set.",
+  });
+  const row = h.one<{ status: string; actual_end_on: string | null }>(
+    "SELECT status, actual_end_on FROM projects WHERE id='prj_brand'",
+  );
+  assert.equal(row?.status, "active");
+  assert.equal(row?.actual_end_on, null, "reopening clears the end date");
+  assert.equal(h.count("activity_events", "kind = 'project.reopened'"), 1);
+});
+
+test("a closed project stays visible to the client", async () => {
+  const { closeProject } = await import("./closeout.ts");
+  const { projectsForUser } = await import("./client-queries.ts");
+  settleBrandProject();
+  await closeProject({ projectId: "prj_brand", actorId: "u_chike", note: "" });
+
+  const visible = await projectsForUser("u_tunde");
+  assert.ok(
+    visible.some((p) => p.id === "prj_brand"),
+    "closing is not archiving — the client keeps the record they were given",
+  );
+});

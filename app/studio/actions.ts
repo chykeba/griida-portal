@@ -16,6 +16,8 @@ import {
   inviteTeamMember as inviteInMemory,
 } from "@/lib/studio/store";
 import type { StudioRole } from "@/lib/studio/types";
+import { ROLE_BLURB, ROLE_LABEL } from "@/lib/studio/permissions";
+import { notifyTeamInvite } from "@/lib/db/notify";
 
 export interface FormState {
   error: string | null;
@@ -96,11 +98,25 @@ export async function inviteTeamMemberAction(
       email,
       role: String(formData.get("role") ?? "member") as StudioRole,
     };
-    if (isDemoMode()) inviteInMemory(me, input);
-    else await inviteTeamMemberInD1(input);
+    if (isDemoMode()) {
+      inviteInMemory(me, input);
+    } else {
+      await inviteTeamMemberInD1(input);
+      // After the write, and never able to undo it — see notify.ts.
+      await notifyTeamInvite({
+        email: input.email.trim().toLowerCase(),
+        fullName: input.name,
+        invitedBy: me.name,
+        roleLabel: ROLE_LABEL[input.role],
+        roleBlurb: ROLE_BLURB[input.role],
+      });
+    }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "That didn’t work." };
   }
   revalidatePath("/studio/team");
-  return { error: null, ok: `${email.trim().toLowerCase()} can sign in now — send them the link from the login page.` };
+  return {
+    error: null,
+    ok: `Invited ${email.trim().toLowerCase()} — we’ve emailed them how to sign in.`,
+  };
 }

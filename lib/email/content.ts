@@ -143,6 +143,57 @@ export function updatePublishedEmail(params: {
   return { subject: `${projectName} — an update`, text, html };
 }
 
+/**
+ * Telling someone they’ve been added to the studio.
+ *
+ * Deliberately not a sign-in link. A magic link lasts an hour, and an invite
+ * is read whenever the person next opens their inbox — a dead link is a poor
+ * first thing to know about a tool. They ask for their own from the login
+ * page, which also proves the address works.
+ */
+export function teamInviteEmail(params: {
+  firstName: string;
+  invitedBy: string;
+  roleLabel: string;
+  roleBlurb: string;
+  loginUrl: string;
+}): EmailBody {
+  const { firstName, invitedBy, roleLabel, roleBlurb, loginUrl } = params;
+  const text = [
+    `Hi ${firstName},`,
+    "",
+    `${invitedBy} has added you to Griida Studio — where we run projects and`,
+    "the client portal that goes with them.",
+    "",
+    `You’re a ${roleLabel.toLowerCase()}: ${roleBlurb}`,
+    "",
+    `Sign in here — enter this email address and we’ll send you a link:`,
+    loginUrl,
+    "",
+    "No password to set up.",
+  ].join("\n");
+
+  const html = shell(`
+<p style="margin:0 0 18px;">Hi ${escapeHtml(firstName)},</p>
+<p style="margin:0 0 18px;">
+  ${escapeHtml(invitedBy)} has added you to <strong>Griida Studio</strong> — where we
+  run projects and the client portal that goes with them.
+</p>
+<p style="margin:0 0 22px;font-size:14px;color:${SOFT};">
+  You’re a ${escapeHtml(roleLabel.toLowerCase())}: ${escapeHtml(roleBlurb)}
+</p>
+<p style="margin:0 0 18px;">
+  <a href="${escapeAttr(loginUrl)}"
+     style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;
+            padding:13px 22px;border-radius:8px;font-weight:500;">Sign in</a>
+</p>
+<p style="margin:0;font-size:14px;color:${SOFT};">
+  Enter this email address and we’ll send you a link. There’s no password to set up.
+</p>`, `${escapeHtml(invitedBy)} added you to the Griida studio`);
+
+  return { subject: `${invitedBy} added you to Griida Studio`, text, html };
+}
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")

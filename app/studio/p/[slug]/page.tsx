@@ -12,8 +12,10 @@ import { projectClients } from "@/lib/db/project-writes";
 import {
   ClientAccess,
   ClientRequests,
+  CloseoutControl,
   HealthControl,
 } from "@/components/studio/project-controls";
+import { closeoutCheck } from "@/lib/db/closeout";
 import { query } from "@/lib/db/d1";
 import { isDemoMode } from "@/lib/auth/dal";
 import { requireStudio } from "@/lib/auth/dal";
@@ -51,6 +53,9 @@ export default async function StudioProjectPage({
   // One query per deliverable, issued together — the review link and its
   // access attestation, which the gate depends on.
   const clients = isDemoMode() ? [] : await projectClients(project.id);
+  // What still stands between this project and done (§5b — the SOP's whole
+  // point is that this question gets asked at the end, not just per delivery).
+  const closeout = isDemoMode() ? null : await closeoutCheck(project.id);
   // Requests including answered ones, so the loop can be closed here.
   const requests = isDemoMode()
     ? []
@@ -311,6 +316,17 @@ export default async function StudioProjectPage({
                       slug={project.slug}
                       clients={clients}
                       canManage={can(me, "manage_project_clients")}
+                    />
+                  </Card>
+
+                  <h2 className="label mb-2 text-ink-soft">Finishing up</h2>
+                  <Card className="mb-6 px-4 py-4">
+                    <CloseoutControl
+                      projectId={project.id}
+                      slug={project.slug}
+                      status={closeout?.status ?? "active"}
+                      blockers={closeout?.blockers ?? []}
+                      canClose={can(me, "close_project")}
                     />
                   </Card>
 

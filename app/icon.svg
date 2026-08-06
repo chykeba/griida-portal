@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" width="40" height="40">
+  <!--
+    The browser-tab mark.
+
+    Kept separate from the <Logo> in components/primitives.tsx on purpose: that
+    one is inline and uses CSS custom properties so it follows the theme, and an
+    icon file has no access to page CSS. So the brand stops are written out here
+    literally, matching --color-brand-* in app/globals.css.
+
+    Like the Logo, this is still the geometric STAND-IN, not the official mark.
+    Replacing it means both files.
+  -->
+  <defs>
+    <linearGradient id="m" x1="6" y1="2" x2="34" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="32%" stop-color="#ff6fb1"/>
+      <stop offset="68%" stop-color="#12c2ff"/>
+      <stop offset="100%" stop-color="#00f0a8"/>
+    </linearGradient>
+  </defs>
+  <path d="M14 2h12l8 14-8 6-14-8z" fill="url(#m)" opacity="0.9"/>
+  <path d="M2 22l14 8 14-6v10l-14 6-14-8z" fill="url(#m)"/>
+</svg>

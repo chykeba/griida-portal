@@ -1,7 +1,7 @@
 import "server-only";
 
 import { query } from "./d1.ts";
-import { sendReviewReady, sendUpdate } from "../email/send.ts";
+import { sendReviewReady, sendTeamInvite, sendUpdate } from "../email/send.ts";
 import { randomToken } from "../auth/tokens.ts";
 
 /**
@@ -129,5 +129,35 @@ export async function notifyUpdatePublished(params: {
     } catch (error) {
       console.error(`[notify] update to ${person.email} failed:`, error);
     }
+  }
+}
+
+/**
+ * Telling a new teammate they exist here.
+ *
+ * Before this, inviting someone wrote a user row and stopped. They could sign
+ * in — the magic link works the moment the row exists — but nothing told them
+ * the studio was there or where to find it, so an invite was a private event.
+ *
+ * Same rule as everything else in this file: a failed send is logged, never
+ * fatal. They are on the team either way; the email is how they find out.
+ */
+export async function notifyTeamInvite(params: {
+  email: string;
+  fullName: string;
+  invitedBy: string;
+  roleLabel: string;
+  roleBlurb: string;
+}): Promise<void> {
+  try {
+    await sendTeamInvite(params.email, {
+      firstName: params.fullName.split(/\s+/)[0],
+      invitedBy: params.invitedBy,
+      roleLabel: params.roleLabel,
+      roleBlurb: params.roleBlurb,
+      loginUrl: `${APP_URL}/login`,
+    });
+  } catch (error) {
+    console.error("[notify] couldn’t send the team invite:", error);
   }
 }

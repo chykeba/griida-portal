@@ -4,6 +4,7 @@ import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import {
   magicLinkEmail,
   reviewReadyEmail,
+  teamInviteEmail,
   updatePublishedEmail,
   type EmailBody,
 } from "./content.ts";
@@ -119,6 +120,19 @@ export async function sendUpdate(
   params: { firstName: string; projectName: string; body: string; url: string },
 ): Promise<void> {
   await send(to, updatePublishedEmail(params));
+}
+
+export async function sendTeamInvite(
+  to: string,
+  params: {
+    firstName: string;
+    invitedBy: string;
+    roleLabel: string;
+    roleBlurb: string;
+    loginUrl: string;
+  },
+): Promise<void> {
+  await send(to, teamInviteEmail(params));
 }
 
 export async function sendReviewReady(

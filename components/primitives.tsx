@@ -4,9 +4,17 @@ import type { ReactNode } from "react";
 /* ==========================================================================
    LOGO
    The one place the brand gradient is allowed to be itself (§6a, §10).
-   NOTE: this is a geometric stand-in built to the proportions of the supplied
-   mark. Drop the real asset into /public/griida-mark.svg and swap the <svg>
-   below — do not recolour or restretch the official mark.
+
+   ⚠️ STILL A STAND-IN. The geometry below was built to the proportions of the
+   supplied mark; it is not the official artwork. Swapping in the real thing
+   means TWO files, both carrying the same paths:
+
+     1. the <svg> below — inline so it can use the theme's CSS custom
+        properties and follow light/dark;
+     2. app/icon.svg — the browser-tab icon, which has no access to page CSS
+        and so repeats the brand stops literally.
+
+   Do not recolour or restretch the official mark when you do.
    ========================================================================== */
 
 export function Logo({ className }: { className?: string }) {
