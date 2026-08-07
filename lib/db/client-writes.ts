@@ -1,7 +1,20 @@
 import "server-only";
 
-import { query, rowsChanged } from "./d1.ts";
+import { query, run } from "./d1.ts";
 import { randomToken } from "../auth/tokens.ts";
+
+/**
+ * The work moved between the page loading and the client deciding.
+ *
+ * Distinct from a failure, because nothing went wrong and "try again" is the
+ * wrong advice — someone should look at where it stands now.
+ */
+export class NotCurrent extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NotCurrent";
+  }
+}
 
 /**
  * The client's only writes: approve, or ask for changes.
@@ -118,12 +131,10 @@ export async function approve(
 ): Promise<void> {
   const now = new Date().toISOString();
 
-  if (ctx.versionId) {
-    await recordDecision(ctx.versionId, ctx.currentRound, userId, "approved", note, now);
-  }
-
-  // Ownership is re-checked here, not assumed from ctx.
-  await query(
+  // Ownership and state are re-checked here, not assumed from ctx, and this
+  // runs BEFORE anything is recorded. The WHERE clause is the authorisation:
+  // right deliverable, still in review, and this client actually on it.
+  const changed = await run(
     `UPDATE deliverables
         SET status = 'approved', state_changed_at = ?1
       WHERE id = ?2
@@ -131,6 +142,15 @@ export async function approve(
         AND project_id IN (SELECT project_id FROM project_client_roles WHERE user_id = ?3)`,
     [now, ctx.deliverableId, userId],
   );
+  if (changed === 0) {
+    throw new NotCurrent(
+      "This isn’t waiting on you any more — have another look at where it stands.",
+    );
+  }
+
+  if (ctx.versionId) {
+    await recordDecision(ctx.versionId, ctx.currentRound, userId, "approved", note, now);
+  }
 
   await query(
     `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility)
@@ -147,6 +167,26 @@ export async function requestChanges(
   const now = new Date().toISOString();
   const billable = nextRoundIsBillable(ctx);
 
+  // The guarded UPDATE goes first, and everything else hangs off whether it
+  // applied. It used to run third, after the feedback comment and with the
+  // billable revision request behind it — so a request against something not
+  // actually in review still wrote a comment and still raised a priced
+  // revision, on work the client had never been sent. The WHERE clause here is
+  // the authorisation: right deliverable, right state, right person.
+  const changed = await run(
+    `UPDATE deliverables
+        SET status = 'changes_requested', state_changed_at = ?1
+      WHERE id = ?2
+        AND status = 'in_review'
+        AND project_id IN (SELECT project_id FROM project_client_roles WHERE user_id = ?3)`,
+    [now, ctx.deliverableId, userId],
+  );
+  if (changed === 0) {
+    throw new NotCurrent(
+      "This isn’t waiting on your notes any more — have another look at where it stands.",
+    );
+  }
+
   if (ctx.versionId) {
     await recordDecision(ctx.versionId, ctx.currentRound, userId, "changes_requested", notes, now);
     await query(
@@ -155,15 +195,6 @@ export async function requestChanges(
       [`fb_${randomToken(8)}`, ctx.versionId, userId, notes],
     );
   }
-
-  await query(
-    `UPDATE deliverables
-        SET status = 'changes_requested', state_changed_at = ?1
-      WHERE id = ?2
-        AND status = 'in_review'
-        AND project_id IN (SELECT project_id FROM project_client_roles WHERE user_id = ?3)`,
-    [now, ctx.deliverableId, userId],
-  );
 
   // Beyond the included rounds, the request becomes a priced decision rather
   // than silent extra work (§5). Deliberately not a block: the studio sees it,
@@ -247,7 +278,7 @@ export async function respondToAction(
     );
   }
 
-  await query(
+  const changed = await run(
     `UPDATE client_actions
         SET status = 'submitted', submitted_at = datetime('now'),
             response_link_id = ?1, response_text = ?2
@@ -256,7 +287,7 @@ export async function respondToAction(
         AND project_id IN (SELECT project_id FROM project_client_roles WHERE user_id = ?4)`,
     [linkId, text ?? null, actionId, userId],
   );
-  if (rowsChanged() === 0) {
+  if (changed === 0) {
     // Lost a race with another submission between the check and the write.
     return { ok: false, error: "That one’s already been answered." };
   }

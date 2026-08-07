@@ -20,6 +20,11 @@ export default async function ReviewPage({
   if (!found) notFound();
 
   const { project, deliverable } = found;
+  // Scheduled work appears on the client's plan before it is sent, so this id
+  // now resolves for something nobody has delivered yet. There is nothing to
+  // review — no link, no rounds — and rendering the decision form for it asks
+  // a client to sign off on work they have never seen.
+  if (deliverable.status === "draft") notFound();
   const ws = await getWorkspace();
   const rounds = roundsCopy(deliverable.round, deliverable.roundsIncluded);
   const link = deliverable.reviewLink;

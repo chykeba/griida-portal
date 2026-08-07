@@ -104,8 +104,9 @@ interface ScheduleRow {
 
 function scheduleRows(project: ProjectView, now: Date): ScheduleRow[] {
   const rows = project.deliverables.map((d) => {
-    const copy = deliverableCopy(d.status);
     const done = d.status === "approved" || d.status === "delivered";
+    // A dated draft is scheduled work, not work in flight.
+    const copy = deliverableCopy(d.status, Boolean(d.dueOn));
     const due = d.dueOn ? deadline(d.dueOn, now, "This") : null;
     return {
       id: d.id,

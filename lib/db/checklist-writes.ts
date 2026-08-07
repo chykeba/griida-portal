@@ -1,6 +1,6 @@
 import "server-only";
 
-import { query, rowsChanged } from "./d1.ts";
+import { query, run } from "./d1.ts";
 import { randomToken } from "../auth/tokens.ts";
 import type { StudioRole } from "../studio/types.ts";
 
@@ -194,13 +194,13 @@ export async function countersign(
   // after mayCountersign passed — someone may have unticked the item in the
   // gap — and the event log is immutable, so an event written for a change
   // that didn't happen would be permanent.
-  await query(
+  const changed = await run(
     `UPDATE checklist_items
         SET state = 'countersigned', state_changed_at = ?1, countersigned_by = ?2
       WHERE id = ?3 AND state = 'checked' AND checked_by IS NOT NULL AND checked_by != ?2`,
     [new Date().toISOString(), actorId, ctx.itemId],
   );
-  if (rowsChanged() === 0) {
+  if (changed === 0) {
     throw new NotPermitted(
       "That item changed while you were looking at it — check where it stands now.",
     );

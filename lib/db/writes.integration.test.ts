@@ -397,9 +397,20 @@ test("what was outstanding is copied into the record, not referenced", async () 
   assert.equal(event?.actor_id, "u_chike", "a decision has an author");
   assert.equal(event?.visibility, "client", "the client is told their project closed");
 
-  const payload = JSON.parse(event!.payload);
-  assert.equal(payload.clean, false);
-  assert.equal(payload.note, "Shipping anyway.");
+  const clientSide = JSON.parse(event!.payload);
+  assert.equal(clientSide.clean, false);
+  assert.equal(clientSide.note, "Shipping anyway.");
+  assert.equal(
+    clientSide.outstanding,
+    undefined,
+    "the client-labelled row must not carry internal task and checklist names",
+  );
+
+  const snapshot = h.one<{ payload: string; visibility: string }>(
+    "SELECT payload, visibility FROM activity_events WHERE kind='project.closed_snapshot'",
+  );
+  assert.equal(snapshot?.visibility, "internal");
+  const payload = JSON.parse(snapshot!.payload);
   assert.ok(payload.outstanding.length > 0);
 
   // The underlying rows keep moving. The record of what was known when someone
@@ -407,7 +418,7 @@ test("what was outstanding is copied into the record, not referenced", async () 
   h.db.exec(`UPDATE tasks SET status = 'done' WHERE project_id = 'prj_brand'`);
   const after = JSON.parse(
     h.one<{ payload: string }>(
-      "SELECT payload FROM activity_events WHERE kind='project.closed'",
+      "SELECT payload FROM activity_events WHERE kind='project.closed_snapshot'",
     )!.payload,
   );
   assert.deepEqual(after.outstanding, payload.outstanding, "the snapshot is frozen");
@@ -576,7 +587,7 @@ test("a due date can only be moved from inside its own project", async () => {
   )!.id;
 
   await assert.rejects(
-    () => setDueDate({ deliverableId: id, projectId: "prj_site", dueOn: "2027-01-01" }),
+    () => setDueDate({ deliverableId: id, projectId: "prj_site", dueOn: "2027-01-01", actorId: "u_chike" }),
     /isn’t part of this project/,
   );
   assert.equal(
@@ -584,7 +595,7 @@ test("a due date can only be moved from inside its own project", async () => {
     "2026-09-01",
   );
 
-  await setDueDate({ deliverableId: id, projectId: "prj_brand", dueOn: "2026-09-15" });
+  await setDueDate({ deliverableId: id, projectId: "prj_brand", dueOn: "2026-09-15", actorId: "u_chike" });
   assert.equal(
     h.one<{ due_on: string }>("SELECT due_on FROM deliverables WHERE id=?", id)?.due_on,
     "2026-09-15",
@@ -606,4 +617,166 @@ test("scheduled items count toward closing the project", async () => {
   assert.equal(check.ok, false, "a planned page nobody delivered is unfinished work");
   assert.equal(check.blockers[0]?.kind, "deliverable");
   assert.ok(check.blockers[0].items.some((i) => i.startsWith("Homepage")));
+});
+
+/* -------------------------------------------------------------------------- */
+/* Ship review: the schedule must not leak unsent work                         */
+/* -------------------------------------------------------------------------- */
+
+test("a dated draft with a review link attached still shows the client no link", async () => {
+  const { deliverablesForUser } = await import("./client-queries.ts");
+  const { setDueDate } = await import("./schedule-writes.ts");
+
+  // dlv_iconset is a draft that ALREADY has a version row and a link — the
+  // normal state of every delivery between attaching a link and sending it,
+  // because the publish gate refuses to send until a link exists. The old
+  // query joined on the version's existence and handed this URL straight over,
+  // before anyone had attested the client could open it.
+  await setDueDate({
+    deliverableId: "dlv_iconset",
+    projectId: "prj_brand",
+    dueOn: "2026-09-01",
+    actorId: "u_chike",
+  });
+
+  const row = (await deliverablesForUser("u_tunde", "prj_brand")).find(
+    (d) => d.id === "dlv_iconset",
+  )!;
+  assert.equal(row.due_on, "2026-09-01", "it is on the schedule");
+  assert.equal(row.status, "draft");
+  assert.equal(row.review_url, null, "an unattested link must never reach a client");
+  assert.equal(row.review_label, null);
+  assert.equal(row.summary, null, "the working note is written for us, not them");
+});
+
+test("the link appears only once the work is actually sent", async () => {
+  const { deliverablesForUser } = await import("./client-queries.ts");
+  const { sendToClient } = await import("./checklist-writes.ts");
+  const { setDueDate } = await import("./schedule-writes.ts");
+
+  await setDueDate({
+    deliverableId: "dlv_iconset", projectId: "prj_brand",
+    dueOn: "2026-09-01", actorId: "u_chike",
+  });
+  h.db.exec(`UPDATE links SET client_access_ok = 1 WHERE id = 'lnk_icons'`);
+  h.db.exec(`UPDATE checklist_items SET state='waived', waived_reason='t' WHERE checklist_id='cl_iconset'`);
+
+  await sendToClient("dlv_iconset", "u_chike");
+
+  const row = (await deliverablesForUser("u_tunde", "prj_brand")).find(
+    (d) => d.id === "dlv_iconset",
+  )!;
+  assert.equal(row.status, "in_review");
+  assert.equal(row.review_url, "https://drive.google.com/drive/folders/ovis-icons");
+});
+
+test("a client cannot lodge feedback on work never sent to them", async () => {
+  const { requestChanges } = await import("./client-writes.ts");
+
+  // The guarded UPDATE used to run third — after the feedback comment, and
+  // with the billable revision request behind it. So a request against a draft
+  // wrote a comment and raised a priced revision on work nobody had delivered.
+  const before = {
+    comments: h.count("feedback_comments"),
+    revisions: h.count("revision_requests"),
+  };
+
+  await assert.rejects(
+    () =>
+      requestChanges(
+        "u_tunde",
+        {
+          deliverableId: "dlv_iconset",
+          projectId: "prj_brand",
+          versionId: "dv_iconset_1",
+          currentRound: 1,
+          roundsIncluded: 0,
+          name: "Icon set",
+        },
+        "Please change everything",
+      ),
+    /isn’t waiting on your notes/,
+  );
+
+  assert.equal(h.count("feedback_comments"), before.comments, "no comment on unsent work");
+  assert.equal(
+    h.count("revision_requests"),
+    before.revisions,
+    "and certainly no billable revision",
+  );
+  assert.equal(
+    h.one<{ status: string }>("SELECT status FROM deliverables WHERE id='dlv_iconset'")?.status,
+    "draft",
+  );
+});
+
+test("two people pasting the same list cannot double the schedule", async () => {
+  const { addScheduleItems, parseScheduleLines } = await import("./schedule-writes.ts");
+  const lines = parseScheduleLines("Homepage\t2026-09-01\nAbout\t2026-09-02");
+
+  // Read-then-write with no transaction: the application dedupe can't settle
+  // this on its own, so the unique index in 0003 is the thing that has to.
+  const results = await Promise.allSettled([
+    addScheduleItems({ projectId: "prj_brand", actorId: "u_chike", lines }),
+    addScheduleItems({ projectId: "prj_brand", actorId: "u_ada", lines }),
+  ]);
+
+  assert.ok(
+    results.some((r) => r.status === "fulfilled"),
+    "one of them must succeed",
+  );
+  assert.equal(h.count("deliverables", "project_id='prj_brand' AND name='Homepage'"), 1);
+  assert.equal(h.count("deliverables", "project_id='prj_brand' AND name='About'"), 1);
+});
+
+test("a date the picker didn’t produce is refused", async () => {
+  const { addScheduleItems, parseScheduleLines, setDueDate } = await import("./schedule-writes.ts");
+  await addScheduleItems({
+    projectId: "prj_brand", actorId: "u_chike",
+    lines: parseScheduleLines("Homepage\t2026-09-01"),
+  });
+  const id = h.one<{ id: string }>("SELECT id FROM deliverables WHERE name='Homepage'")!.id;
+
+  for (const junk of ["<script>x</script>", "tomorrow", "2026-13-45", "9/1/2026"]) {
+    await assert.rejects(
+      () => setDueDate({ deliverableId: id, projectId: "prj_brand", dueOn: junk, actorId: "u_chike" }),
+      /isn’t a date/,
+      junk,
+    );
+  }
+  assert.equal(
+    h.one<{ due_on: string }>("SELECT due_on FROM deliverables WHERE id=?", id)?.due_on,
+    "2026-09-01",
+  );
+});
+
+test("moving a client-visible date is recorded against a name", async () => {
+  const { addScheduleItems, parseScheduleLines, setDueDate } = await import("./schedule-writes.ts");
+  await addScheduleItems({
+    projectId: "prj_brand", actorId: "u_chike",
+    lines: parseScheduleLines("Homepage\t2026-09-01"),
+  });
+  const id = h.one<{ id: string }>("SELECT id FROM deliverables WHERE name='Homepage'")!.id;
+
+  await setDueDate({ deliverableId: id, projectId: "prj_brand", dueOn: "2026-09-15", actorId: "u_ada" });
+  assert.equal(
+    h.count("activity_events", `kind='deliverable.date_changed' AND actor_id='u_ada'`),
+    1,
+  );
+});
+
+test("an oversized paste is refused whole rather than written halfway", async () => {
+  const { addScheduleItems, parseScheduleLines, MAX_ITEMS } = await import("./schedule-writes.ts");
+  const many = Array.from({ length: MAX_ITEMS + 1 }, (_, n) => `Page ${n}\t2026-09-01`).join("\n");
+
+  const before = h.count("deliverables", "project_id='prj_brand'");
+  await assert.rejects(
+    () => addScheduleItems({ projectId: "prj_brand", actorId: "u_chike", lines: parseScheduleLines(many) }),
+    /most in one go/,
+  );
+  assert.equal(
+    h.count("deliverables", "project_id='prj_brand'"),
+    before,
+    "nothing written — there is no transaction to undo a partial one",
+  );
 });

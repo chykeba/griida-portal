@@ -1,6 +1,6 @@
 import "server-only";
 
-import { query, rowsChanged } from "./d1.ts";
+import { query, run } from "./d1.ts";
 import { NotPermitted } from "./checklist-writes.ts";
 
 /**
@@ -157,26 +157,33 @@ export async function closeProject(input: {
     );
   }
 
-  await query(
+  const changed = await run(
     `UPDATE projects SET status = 'done', actual_end_on = date('now')
       WHERE id = ?1 AND status != 'done'`,
     [input.projectId],
   );
-  if (rowsChanged() === 0) {
+  if (changed === 0) {
     throw new NotPermitted("Someone else closed it while you were looking.");
   }
 
-  // The outstanding items are copied in as they stood, not referenced. The
-  // rows they came from will keep changing; the record of what was known at
-  // the moment someone signed this off must not.
+  // Two events, because they are read by different people.
+  //
+  // The client-visible one says the project closed and why, and carries
+  // nothing else. The snapshot of what was outstanding is internal: it is
+  // built from `tasks` and `checklist_items`, both INTERNAL_ONLY, and tagging
+  // it 'client' would mean the first client-facing activity feed anyone builds
+  // inherits a leak that no query today would catch.
   await query(
     `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility, payload)
      VALUES (?1, ?2, 'project.closed', 'project', ?1, 'client', ?3)`,
-    [
-      input.projectId,
-      input.actorId,
-      JSON.stringify({ note: note || null, outstanding: check.blockers, clean: check.ok }),
-    ],
+    [input.projectId, input.actorId, JSON.stringify({ note: note || null, clean: check.ok })],
+  );
+  // Copied in as it stood, not referenced — the rows it came from keep
+  // changing, and the record of what someone signed off must not.
+  await query(
+    `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility, payload)
+     VALUES (?1, ?2, 'project.closed_snapshot', 'project', ?1, 'internal', ?3)`,
+    [input.projectId, input.actorId, JSON.stringify({ outstanding: check.blockers })],
   );
 
   return check;
@@ -193,12 +200,12 @@ export async function reopenProject(input: {
     throw new NotPermitted("Say why it’s reopening — the client can see this happen.");
   }
 
-  await query(
+  const changed = await run(
     `UPDATE projects SET status = 'active', actual_end_on = NULL
       WHERE id = ?1 AND status = 'done'`,
     [input.projectId],
   );
-  if (rowsChanged() === 0) {
+  if (changed === 0) {
     throw new NotPermitted("That project isn’t closed.");
   }
 

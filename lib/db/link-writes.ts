@@ -1,6 +1,6 @@
 import "server-only";
 
-import { query, rowsChanged } from "./d1.ts";
+import { query, run } from "./d1.ts";
 import { NotPermitted } from "./checklist-writes.ts";
 import { randomToken } from "../auth/tokens.ts";
 
@@ -153,7 +153,7 @@ export async function attestClientAccess(
   // flip the access gate on another project’s review link and unblock a send
   // they never looked at. Links have no project column, so we reach them
   // through the two places a project can hold one.
-  await query(
+  const changed = await run(
     `UPDATE links
         SET client_access_ok = ?1, access_checked_at = datetime('now'),
             added_by = COALESCE(added_by, ?2)
@@ -167,7 +167,7 @@ export async function attestClientAccess(
         )`,
     [confirmed ? 1 : 0, actorId, linkId, projectId],
   );
-  if (rowsChanged() === 0) {
+  if (changed === 0) {
     throw new Error("That link isn’t part of this project.");
   }
 }

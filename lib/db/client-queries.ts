@@ -113,21 +113,34 @@ export interface DeliverableRow {
  * just a history. Dating a deliverable is the act of committing to it publicly;
  * an undated draft is still someone's scratch row and stays invisible.
  *
- * Note what does NOT follow from being on the schedule: the review link is
- * joined through `deliverable_versions`, which a draft has none of, so a
- * scheduled-but-unsent row carries a name, a date and a status and nothing
- * else. The publish gate is untouched.
+ * Note what does NOT follow from being on the schedule. A scheduled-but-unsent
+ * row carries a name, a date and a status — no review link, no summary.
+ *
+ * That is enforced by `v.published_at IS NOT NULL` below, NOT by the row being
+ * a draft. An earlier version of this comment claimed a draft has no
+ * `deliverable_versions` row; that was false and the code trusted it.
+ * `setReviewLink` creates the version the moment a link is attached, and it has
+ * to — `publishCheck` refuses to send until a link exists and someone has
+ * attested the client can open it. "Draft with a link attached" is therefore
+ * the normal intermediate state of every single delivery, so joining on
+ * anything weaker than the publish stamp handed clients unattested URLs.
+ * `published_at` is written by `sendToClient` and by nothing else: it is the
+ * publish event itself.
  */
 export async function deliverablesForUser(userId: string, projectId: string) {
   return queryAsClient<DeliverableRow>(
-    `SELECT d.id, d.name, d.type_name, d.status, d.summary, d.current_round,
+    `SELECT d.id, d.name, d.type_name, d.status, d.current_round,
             d.requires_considered_review, d.state_changed_at, d.due_on,
+            -- The working note is written for us, not for them.
+            CASE WHEN d.status = 'draft' THEN NULL ELSE d.summary END AS summary,
             l.url AS review_url, l.label AS review_label,
             l.best_on_desktop, l.client_access_ok
        FROM deliverables d
        JOIN project_client_roles r ON r.project_id = d.project_id
        LEFT JOIN deliverable_versions v
-              ON v.deliverable_id = d.id AND v.round = d.current_round
+              ON v.deliverable_id = d.id
+             AND v.round = d.current_round
+             AND v.published_at IS NOT NULL
        LEFT JOIN links l ON l.id = v.review_link_id
       WHERE r.user_id = ?1
         AND d.project_id = ?2

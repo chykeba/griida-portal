@@ -1,7 +1,15 @@
 import "server-only";
 
-import { query, rowsChanged } from "./d1.ts";
+import { query, run } from "./d1.ts";
 import { NotPermitted } from "./checklist-writes.ts";
+
+/** Bad input, not a permission problem — worth separating so the UI can say so. */
+export class BadInput extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BadInput";
+  }
+}
 import { randomToken } from "../auth/tokens.ts";
 
 /**
@@ -40,10 +48,41 @@ export function parseScheduleLines(text: string, today = new Date()): ParsedLine
     .map((raw) => raw.trim())
     .filter((raw) => raw.length > 0)
     .map((raw) => {
-      const parts = raw.split(/\t|,(?=[^,]*$)/).map((p) => p.trim());
-      const name = parts[0].replace(/\s+/g, " ");
-      const rest = parts.slice(1).filter(Boolean).join(" ");
+      // A tab is unambiguous: name, then date. A comma is not — "Business, Law
+      // & Education" is one name, and splitting it produced "Business" on a
+      // real client's schedule. So the comma only separates a date when what
+      // follows actually reads as one; otherwise the line is all name.
+      let name = raw;
+      let rest = "";
 
+      if (raw.includes("\t")) {
+        const [first, ...tail] = raw.split("\t");
+        name = first.trim();
+        rest = tail.join(" ").trim();
+      } else {
+        const comma = raw.lastIndexOf(",");
+        if (comma !== -1 && parseDate(raw.slice(comma + 1).trim(), today)) {
+          name = raw.slice(0, comma).trim();
+          rest = raw.slice(comma + 1).trim();
+        }
+      }
+
+      name = name.replace(/\s+/g, " ").trim();
+
+      // Must contain something nameable. A line of stray punctuation left over
+      // from a paste was coming through as an item literally called ",".
+      if (!/[\p{L}\p{N}]/u.test(name)) {
+        return {
+          name,
+          dueOn: null,
+          problem: "That line has no name — just a date or a stray separator",
+        };
+      }
+      // A bare date on its own line is someone's paste going wrong, not an
+      // item called "2026-09-02".
+      if (!rest && parseDate(name, today)) {
+        return { name, dueOn: null, problem: "That line is a date with nothing to attach it to" };
+      }
       if (!rest) return { name, dueOn: null, problem: null };
 
       const parsed = parseDate(rest, today);
@@ -71,13 +110,31 @@ function parseDate(value: string, today: Date): string | null {
     return valid(year, +us[1], +us[2]);
   }
 
-  const named = Date.parse(`${value} ${today.getFullYear()}`);
-  if (!Number.isNaN(named)) {
-    const d = new Date(named);
-    return valid(d.getFullYear(), d.getMonth() + 1, d.getDate());
+  // Month names, matched explicitly. This used to fall through to Date.parse,
+  // whose legacy path silently discards words it doesn't recognise and keeps
+  // the year — so "TBD", "ASAP" and "when ready" all came back as 1 January,
+  // problem-free. On a column that decides whether a client sees the row, that
+  // turned the commonest placeholder in a schedule into a public commitment
+  // already months overdue.
+  const named = /^([A-Za-z]{3,9})\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(\d{4}))?$/.exec(value);
+  if (named) {
+    const month = MONTHS.indexOf(named[1].slice(0, 3).toLowerCase());
+    if (month !== -1) return valid(named[3] ? +named[3] : today.getFullYear(), month + 1, +named[2]);
   }
+
+  // The same, day first: "6 August".
+  const dayFirst = /^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?(?:,?\s+(\d{4}))?$/.exec(value);
+  if (dayFirst) {
+    const month = MONTHS.indexOf(dayFirst[2].slice(0, 3).toLowerCase());
+    if (month !== -1) {
+      return valid(dayFirst[3] ? +dayFirst[3] : today.getFullYear(), month + 1, +dayFirst[1]);
+    }
+  }
+
   return null;
 }
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 function valid(year: number, month: number, day: number): string | null {
   if (year < 2000 || year > 2100) return null;
@@ -103,6 +160,14 @@ export interface AddedItems {
  * a corrected list over the top adds the new lines instead of doubling
  * everything.
  */
+/**
+ * A paste this long is a mistake, not a schedule. The cap exists because every
+ * row is a client-visible commitment and there is no transaction to undo a
+ * half-written one.
+ */
+export const MAX_ITEMS = 200;
+const MAX_NAME = 200;
+
 export async function addScheduleItems(input: {
   projectId: string;
   actorId: string;
@@ -111,7 +176,16 @@ export async function addScheduleItems(input: {
 }): Promise<AddedItems> {
   const usable = input.lines.filter((l) => l.name && !l.problem);
   if (usable.length === 0) {
-    throw new NotPermitted("Nothing to add — paste one item per line.");
+    throw new BadInput("Nothing to add — paste one item per line.");
+  }
+  if (usable.length > MAX_ITEMS) {
+    throw new BadInput(
+      `That’s ${usable.length} items. ${MAX_ITEMS} is the most in one go — split it up.`,
+    );
+  }
+  const tooLong = usable.find((l) => l.name.length > MAX_NAME);
+  if (tooLong) {
+    throw new BadInput(`“${tooLong.name.slice(0, 40)}…” is too long to be an item name.`);
   }
 
   const existing = await query<{ name: string }>(
@@ -140,19 +214,30 @@ export async function addScheduleItems(input: {
       )[0]?.name ?? "Page")
     : "Page";
 
-  for (const line of toAdd) {
-    await query(
-      `INSERT INTO deliverables (id, project_id, deliverable_type_id, name, type_name,
-                                 status, current_round, due_on)
-       VALUES (?1, ?2, ?3, ?4, ?5, 'draft', 1, ?6)`,
-      [
+  // One statement, not one per row. Every query here is an HTTP round trip to
+  // Cloudflare (see d1.ts) — twenty pages was twenty sequential hops, and with
+  // no transactions a failure at item twelve left half a schedule live on the
+  // client's plan with nothing recording that it happened.
+  if (toAdd.length > 0) {
+    const values: string[] = [];
+    const params: unknown[] = [];
+    for (const line of toAdd) {
+      const n = params.length;
+      values.push(`(?${n + 1}, ?${n + 2}, ?${n + 3}, ?${n + 4}, ?${n + 5}, 'draft', 1, ?${n + 6})`);
+      params.push(
         `dlv_${randomToken(10)}`,
         input.projectId,
         input.deliverableTypeId ?? null,
         line.name,
         typeName,
         line.dueOn,
-      ],
+      );
+    }
+    await query(
+      `INSERT INTO deliverables (id, project_id, deliverable_type_id, name, type_name,
+                                 status, current_round, due_on)
+       VALUES ${values.join(", ")}`,
+      params,
     );
   }
 
@@ -172,13 +257,37 @@ export async function setDueDate(input: {
   deliverableId: string;
   projectId: string;
   dueOn: string | null;
+  actorId: string;
 }): Promise<void> {
-  await query(`UPDATE deliverables SET due_on = ?1 WHERE id = ?2 AND project_id = ?3`, [
-    input.dueOn,
+  // `<input type="date">` is a client-side courtesy, not a guarantee — a server
+  // action accepts any POST. And this column decides whether the client sees
+  // the row and where it sorts, so junk here corrupts the plan rather than
+  // just this field.
+  const dueOn = input.dueOn?.trim() || null;
+  if (dueOn !== null && dueOn !== normaliseDate(dueOn)) {
+    throw new BadInput("That isn’t a date. Use the picker, or clear it.");
+  }
+
+  const changed = await run(`UPDATE deliverables SET due_on = ?1 WHERE id = ?2 AND project_id = ?3`, [
+    dueOn,
     input.deliverableId,
     input.projectId,
   ]);
-  if (rowsChanged() === 0) {
+  if (changed === 0) {
     throw new NotPermitted("That item isn’t part of this project.");
   }
+
+  // Moving a date the client can see is a state change like any other, and
+  // every other one in this codebase carries an author.
+  await query(
+    `INSERT INTO activity_events (project_id, actor_id, kind, subject_kind, subject_id, visibility, payload)
+     VALUES (?1, ?2, 'deliverable.date_changed', 'deliverable', ?3, 'internal', ?4)`,
+    [input.projectId, input.actorId, input.deliverableId, JSON.stringify({ dueOn })],
+  );
+}
+
+/** ISO or nothing. Shares `valid()` so both paths agree on what a date is. */
+function normaliseDate(value: string): string | null {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  return iso ? valid(+iso[1], +iso[2], +iso[3]) : null;
 }

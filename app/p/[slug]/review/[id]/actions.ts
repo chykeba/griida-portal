@@ -7,6 +7,7 @@ import {
   approve,
   requestChanges,
   reviewableForUser,
+  NotCurrent,
 } from "@/lib/db/client-writes";
 
 export interface ReviewState {
@@ -62,7 +63,10 @@ export async function decide(
     const { billable } = await requestChanges(user.id, ctx, notes);
     revalidatePath(`/p/${slug}`);
     return { done: "changes", error: null, billable };
-  } catch {
+  } catch (e) {
+    // A state conflict isn't a failure, and telling someone "try again" when
+    // the work has already moved on sends them round the same loop.
+    if (e instanceof NotCurrent) return { done: null, error: e.message };
     return {
       done: null,
       error: "That didn't send — it's us, not you. Nothing was recorded, so try again in a moment.",

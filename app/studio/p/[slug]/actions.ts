@@ -188,15 +188,22 @@ export async function publishAction(
   formData: FormData,
 ): Promise<ItemState> {
   const slug = String(formData.get("slug") ?? "");
-  const projectId = String(formData.get("projectId") ?? "");
   const body = String(formData.get("body") ?? "");
 
-  await requireStudio(`/studio/p/${slug}`);
+  // The project comes from the route, reconciled against the form. This took
+  // the form's projectId unchecked, so a lead on one project could publish a
+  // client-visible update onto another by editing a hidden field.
+  const { me, projectId: routeProject } = await studioGate(slug);
   if (isDemoMode()) return { error: DEMO_NOTE };
 
-  const me = await getCurrentPerson();
   if (!can(me, "publish_update")) {
     return { error: "Publishing to a client is for leads and above." };
+  }
+  let projectId: string;
+  try {
+    projectId = sameProject(formData.get("projectId"), routeProject);
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "That didn’t work." };
   }
 
   try {
@@ -417,11 +424,15 @@ export async function addScheduleAction(
     const lines = parseScheduleLines(String(formData.get("items") ?? ""));
     const unreadable = lines.filter((l) => l.problem);
     if (unreadable.length > 0) {
+      // Every problem line is named. Adding the readable ones and staying
+      // quiet about the rest is how a page goes missing from a client's plan
+      // and nobody notices for three weeks.
       return {
         error:
-          `Couldn’t read the date on ${unreadable.length === 1 ? "this line" : "these lines"}: ` +
-          `${unreadable.map((l) => l.name).join(", ")}. Fix ${unreadable.length === 1 ? "it" : "them"} ` +
-          `or drop the date — an item without one still gets added.`,
+          `Nothing was added. ${unreadable.length === 1 ? "This line" : "These lines"} ` +
+          `need a look first — ` +
+          unreadable.map((l) => `${l.name ? `“${l.name}”: ` : ""}${l.problem}`).join("; ") +
+          `. An item with no date at all is fine; it just won’t reach the client yet.`,
         ok: null,
       };
     }
@@ -452,6 +463,7 @@ export async function setDueDateAction(formData: FormData): Promise<void> {
     deliverableId: String(formData.get("deliverableId") ?? ""),
     projectId: sameProject(formData.get("projectId"), projectId),
     dueOn: String(formData.get("dueOn") ?? "") || null,
+    actorId: me.id,
   });
   revalidatePath(`/studio/p/${slug}`);
   revalidatePath(`/p/${slug}`);

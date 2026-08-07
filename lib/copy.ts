@@ -314,7 +314,16 @@ export type DeliverableStatus =
  * Status told from the client’s point of view — what it means for *them*,
  * not what it means in our workflow. §6: translate, don’t expose.
  */
-export function deliverableCopy(status: DeliverableStatus): {
+export function deliverableCopy(
+  status: DeliverableStatus,
+  /**
+   * Scheduled but unstarted work reads differently from work in flight. Twenty
+   * pages all claiming "we're still working on this" on day one is not what
+   * the schedule is for — and it's the state most rows are in for most of a
+   * project.
+   */
+  scheduled = false,
+): {
   label: string;
   meaning: string;
   tone: "neutral" | "caution" | "approved";
@@ -322,12 +331,19 @@ export function deliverableCopy(status: DeliverableStatus): {
 } {
   switch (status) {
     case "draft":
-      return {
-        label: "In progress",
-        meaning: "We’re still working on this one.",
-        tone: "neutral",
-        needsYou: false,
-      };
+      return scheduled
+        ? {
+            label: "Not started",
+            meaning: "Planned. We’ll let you know when there’s something to see.",
+            tone: "neutral",
+            needsYou: false,
+          }
+        : {
+            label: "In progress",
+            meaning: "We’re still working on this one.",
+            tone: "neutral",
+            needsYou: false,
+          };
     case "in_review":
       return {
         label: "Ready for you",

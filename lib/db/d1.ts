@@ -37,23 +37,13 @@ interface D1Response<T> {
   result?: { results: T[]; success: boolean; meta?: { changes?: number } }[];
 }
 
-/** Rows the last statement actually changed. */
-let lastChanges = 0;
-
-/**
- * How many rows the previous write affected.
- *
- * Most writes here are conditional UPDATEs whose WHERE clause *is* the security
- * or state guard — `WHERE status = 'open'`, `WHERE checked_by != ?2`. Without
- * this, "the guard rejected it" and "it worked" are indistinguishable, which is
- * how a double-submit came to tell a client "Got it" while dropping their
- * answer. Call it immediately after the write you care about.
- */
-export function rowsChanged(): number {
-  return lastChanges;
+interface Result<T> {
+  rows: T[];
+  /** Rows this statement changed. */
+  changes: number;
 }
 
-async function execute<T>(sql: string, params: unknown[]): Promise<T[]> {
+async function execute<T>(sql: string, params: unknown[]): Promise<Result<T>> {
   const config = readConfig();
   if (!config) {
     throw new Error(
@@ -87,8 +77,10 @@ async function execute<T>(sql: string, params: unknown[]): Promise<T[]> {
     throw new Error(`D1 query failed: ${detail}`);
   }
 
-  lastChanges = body.result?.[0]?.meta?.changes ?? 0;
-  return body.result?.[0]?.results ?? [];
+  return {
+    rows: body.result?.[0]?.results ?? [],
+    changes: body.result?.[0]?.meta?.changes ?? 0,
+  };
 }
 
 /**
@@ -96,7 +88,26 @@ async function execute<T>(sql: string, params: unknown[]): Promise<T[]> {
  * after a permission check.
  */
 export async function query<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-  return execute<T>(sql, params);
+  return (await execute<T>(sql, params)).rows;
+}
+
+/**
+ * A write, returning how many rows it actually changed.
+ *
+ * Most writes here are conditional UPDATEs whose WHERE clause *is* the security
+ * or state guard — `WHERE status = 'open'`, `WHERE checked_by != ?2`. Without
+ * the count, "the guard rejected it" and "it worked" are indistinguishable,
+ * which is how a double-submit came to tell a client "Got it" while dropping
+ * their answer.
+ *
+ * The count travels with the call and is never stashed. It used to live in a
+ * module-level variable read after the fact, which is a cross-request bug in a
+ * process that serves concurrent requests: two people closing the same project
+ * could each read the other's count, leaving the project closed with no audit
+ * event and both of them told it had failed.
+ */
+export async function run(sql: string, params: unknown[] = []): Promise<number> {
+  return (await execute(sql, params)).changes;
 }
 
 /**
@@ -113,7 +124,7 @@ export async function queryAsClient<T>(
   context = "client query",
 ): Promise<T[]> {
   assertClientSafe(sql, context);
-  return execute<T>(sql, params);
+  return (await execute<T>(sql, params)).rows;
 }
 
 /** Booleans are stored 0/1 in SQLite. */
