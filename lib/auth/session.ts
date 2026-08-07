@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { query, run } from "../db/d1.ts";
+import { query } from "../db/d1.ts";
 import {
   MAX_LINKS_PER_WINDOW,
   RATE_WINDOW_MINUTES,
