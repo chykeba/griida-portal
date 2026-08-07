@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
-import { query } from "../db/d1.ts";
+import { query, run } from "../db/d1.ts";
 import {
   MAX_LINKS_PER_WINDOW,
   RATE_WINDOW_MINUTES,
@@ -14,6 +14,7 @@ import {
   randomToken,
   sessionExpiry,
 } from "./tokens.ts";
+import { checkCredentials } from "./credentials.ts";
 
 export interface SessionUser {
   id: string;
@@ -36,6 +37,35 @@ interface UserRow {
 
 /* -------------------------------------------------------------------------- */
 /* Issuing a magic link                                                        */
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* Signing in with a password (studio only)                                    */
+/* -------------------------------------------------------------------------- */
+
+export type PasswordResult =
+  | { ok: true; user: SessionUser }
+  | { ok: false; reason: "no" | "locked" };
+
+/**
+ * Verifies an email and password and starts a session.
+ *
+ * The checking lives in credentials.ts, which has no dependency on cookies and
+ * so can be tested against a real database. This is only the half that needs
+ * the request.
+ */
+export async function signInWithPassword(
+  rawEmail: string,
+  password: string,
+): Promise<PasswordResult> {
+  const result = await checkCredentials(rawEmail, password);
+  if (!result.ok) return result;
+  await startSession(result.user.id);
+  return { ok: true, user: toSessionUser(result.user) };
+}
+
+export { hasPassword, removePassword, setPassword, verifyCurrentPassword } from "./credentials.ts";
+
 /* -------------------------------------------------------------------------- */
 
 export interface IssueResult {

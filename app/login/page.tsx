@@ -29,8 +29,8 @@ export default async function LoginPage({
             Sign in
           </h1>
           <p className="mt-2 leading-relaxed text-ink-soft">
-            Pop in your email and we’ll send you a link. No password to
-            remember, and nothing to set up.
+            Enter your email and password, or leave the password blank and
+            we’ll email you a link.
           </p>
 
           {problem === "expired" ? (

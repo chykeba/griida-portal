@@ -66,12 +66,37 @@ export function LoginForm({ next }: { next: string }) {
             state.error ? "border-alert" : "border-rule-interactive"
           }`}
         />
-        {state.error ? (
-          <p id="email-error" role="alert" className="animate-rise mt-1.5 text-small text-alert">
-            {state.error}
-          </p>
-        ) : null}
       </div>
+
+      {/* Optional on purpose. The studio types one; clients never see a mode
+          to choose, they just leave it empty and get a link. */}
+      <div>
+        <label htmlFor="password" className="block text-small font-medium">
+          Password{" "}
+          <span className="font-normal text-ink-faint">— if you’ve set one</span>
+        </label>
+        <Meta className="mt-0.5 mb-1.5 block">
+          Leave it blank and we’ll email you a link instead.
+        </Meta>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          defaultValue=""
+          aria-invalid={state.error ? true : undefined}
+          aria-describedby={state.error ? "sign-in-error" : undefined}
+          className={`min-h-12 w-full rounded-md border bg-paper-raised px-3.5 text-base outline-none transition-colors duration-150 focus:border-ink ${
+            state.error ? "border-alert" : "border-rule-interactive"
+          }`}
+        />
+      </div>
+
+      {state.error ? (
+        <p id="sign-in-error" role="alert" className="animate-rise text-small text-alert">
+          {state.error}
+        </p>
+      ) : null}
 
       <button
         type="submit"
@@ -83,7 +108,7 @@ export function LoginForm({ next }: { next: string }) {
         ) : (
           <Mail className="size-4" strokeWidth={1.75} aria-hidden />
         )}
-        {pending ? "Sending…" : "Email me a link"}
+        {pending ? "One moment…" : "Sign in"}
       </button>
     </form>
   );

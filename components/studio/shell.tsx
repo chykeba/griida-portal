@@ -56,12 +56,14 @@ export function StudioHeader({ person, active }: { person: Person; active: strin
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <span
-            title={person.name}
-            className="flex size-7 items-center justify-center rounded-full border border-paper-raised/35 font-mono text-[0.6875rem]"
+          <Link
+            href="/studio/account"
+            title={`${person.name} — your account`}
+            aria-label={`${person.name} — your account`}
+            className="pressable flex size-7 items-center justify-center rounded-full border border-paper-raised/35 font-mono text-[0.6875rem] hover:bg-paper-raised/15"
           >
             {person.initials}
-          </span>
+          </Link>
           <ThemeToggle />
         </div>
       </div>
