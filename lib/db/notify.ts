@@ -1,7 +1,7 @@
 import "server-only";
 
 import { query } from "./d1.ts";
-import { sendReviewReady, sendTeamInvite, sendUpdate } from "../email/send.ts";
+import { isEmailConfigured, sendReviewReady, sendTeamInvite, sendUpdate } from "../email/send.ts";
 import { randomToken } from "../auth/tokens.ts";
 
 /**
@@ -15,11 +15,31 @@ import { randomToken } from "../auth/tokens.ts";
  *   - **Email failure never fails the write.** If SES is down, the update is
  *     still published and the work still moves. A notification is a courtesy on
  *     top of a fact, not the fact itself.
+ *   - **But it is never silent.** These used to log to the server console and
+ *     return nothing, so the studio saw "Published" while nothing had reached
+ *     anyone — and the reason (usually SES still being in the sandbox, where it
+ *     will only send to verified addresses) sat in a log nobody reads. Every
+ *     function here reports what happened so the caller can say so.
  *   - **Never notify the person who acted.** The studio member who published
  *     doesn't need an email telling them they published.
  */
 
 const APP_URL = process.env.APP_URL ?? "https://griida-portal.vercel.app";
+
+export interface Delivery {
+  sent: string[];
+  failed: { email: string; reason: string }[];
+  /** True when SES isn't configured at all, so nothing was even attempted. */
+  notConfigured: boolean;
+}
+
+/** One line a studio person can act on, or null when everything landed. */
+export function deliveryProblem(d: Delivery): string | null {
+  if (d.notConfigured) return "Email isn’t configured, so nobody was notified.";
+  if (d.failed.length === 0) return null;
+  const who = d.failed.map((f) => f.email).join(", ");
+  return `Couldn’t email ${who}. ${d.failed[0].reason}`;
+}
 
 interface Recipient {
   id: string;
@@ -64,19 +84,22 @@ export async function notifyReviewReady(params: {
   deliverableId: string;
   deliverableName: string;
   actorId: string;
-}): Promise<void> {
+}): Promise<Delivery> {
   const path = `/p/${params.projectSlug}/review/${params.deliverableId}`;
   const url = `${APP_URL}${path}`;
 
   // The lookup itself is inside the guard. It was outside, which meant a
   // database hiccup here failed a write that had already succeeded — the exact
   // opposite of what this module promises.
+  const delivery: Delivery = { sent: [], failed: [], notConfigured: !isEmailConfigured() };
+
   let recipients: Recipient[] = [];
   try {
     recipients = await clientsOn(params.projectId, params.actorId);
   } catch (error) {
     console.error("[notify] couldn’t look up recipients:", error);
-    return;
+    delivery.failed.push({ email: "the client list", reason: "We couldn’t look up who to tell." });
+    return delivery;
   }
 
   for (const person of recipients) {
@@ -88,11 +111,18 @@ export async function notifyReviewReady(params: {
         url,
       });
       await record(person.id, "review_ready", `Ready for you: ${params.deliverableName}`, null, path);
+      delivery.sent.push(person.email);
     } catch (error) {
-      // Logged, not thrown. The work has already moved.
+      // Reported, not thrown. The work has already moved — but the studio is
+      // told, because "sent" and "silently didn't send" must not look alike.
       console.error(`[notify] review-ready to ${person.email} failed:`, error);
+      delivery.failed.push({
+        email: person.email,
+        reason: error instanceof Error ? error.message : "Unknown error.",
+      });
     }
   }
+  return delivery;
 }
 
 /** An update has been published. */
@@ -102,19 +132,22 @@ export async function notifyUpdatePublished(params: {
   projectName: string;
   body: string;
   actorId: string;
-}): Promise<void> {
+}): Promise<Delivery> {
   const path = `/p/${params.projectSlug}`;
   const url = `${APP_URL}${path}`;
 
   // The lookup itself is inside the guard. It was outside, which meant a
   // database hiccup here failed a write that had already succeeded — the exact
   // opposite of what this module promises.
+  const delivery: Delivery = { sent: [], failed: [], notConfigured: !isEmailConfigured() };
+
   let recipients: Recipient[] = [];
   try {
     recipients = await clientsOn(params.projectId, params.actorId);
   } catch (error) {
     console.error("[notify] couldn’t look up recipients:", error);
-    return;
+    delivery.failed.push({ email: "the client list", reason: "We couldn’t look up who to tell." });
+    return delivery;
   }
 
   for (const person of recipients) {
@@ -126,10 +159,16 @@ export async function notifyUpdatePublished(params: {
         url,
       });
       await record(person.id, "update_published", `${params.projectName} — an update`, params.body, path);
+      delivery.sent.push(person.email);
     } catch (error) {
       console.error(`[notify] update to ${person.email} failed:`, error);
+      delivery.failed.push({
+        email: person.email,
+        reason: error instanceof Error ? error.message : "Unknown error.",
+      });
     }
   }
+  return delivery;
 }
 
 /**

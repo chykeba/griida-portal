@@ -14,7 +14,7 @@ import {
   untick,
   waive,
 } from "@/lib/db/checklist-writes";
-import { notifyReviewReady, notifyUpdatePublished } from "@/lib/db/notify";
+import { deliveryProblem, notifyReviewReady, notifyUpdatePublished } from "@/lib/db/notify";
 import { attestClientAccess, checkReachable, setReviewLink } from "@/lib/db/link-writes";
 import { closeProject, reopenProject } from "@/lib/db/closeout";
 import { addScheduleItems, parseScheduleLines, setDueDate } from "@/lib/db/schedule-writes";
@@ -30,6 +30,11 @@ import {
 
 export interface ItemState {
   error: string | null;
+  /**
+   * The write worked, but telling the client didn't. Separate from `error`
+   * because the work HAS moved — this is a heads-up, not a failure.
+   */
+  warning?: string | null;
 }
 
 const DEMO_NOTE =
@@ -162,11 +167,12 @@ export async function sendToClientAction(
     return { error: "Sending work to a client is for leads and above." };
   }
 
+  let notifyWarning: string | null = null;
   try {
     const check = await sendToClient(deliverableId, me.id, reason ? { reason } : undefined);
     // Emailing is a courtesy on top of a fact. If it fails, the work has still
     // moved — notify swallows and logs rather than throwing.
-    await notifyReviewReady({
+    const delivery = await notifyReviewReady({
       projectId: check.projectId,
       projectSlug: check.projectSlug,
       projectName: check.projectName,
@@ -174,13 +180,14 @@ export async function sendToClientAction(
       deliverableName: check.name,
       actorId: me.id,
     });
+    notifyWarning = deliveryProblem(delivery);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "That didn’t send." };
   }
 
   revalidatePath(`/studio/p/${slug}`);
   revalidatePath(`/p/${slug}`);
-  return { error: null };
+  return { error: null, warning: notifyWarning };
 }
 
 export async function publishAction(
@@ -206,17 +213,19 @@ export async function publishAction(
     return { error: e instanceof Error ? e.message : "That didn’t work." };
   }
 
+  let notifyWarning: string | null = null;
   try {
     await publishUpdate(projectId, me.id, body);
     const project = await import("@/lib/studio/data").then((m) => m.getStudioProject(slug));
     if (project) {
-      await notifyUpdatePublished({
+      const delivery = await notifyUpdatePublished({
         projectId,
         projectSlug: slug,
         projectName: project.name,
         body,
         actorId: me.id,
       });
+      notifyWarning = deliveryProblem(delivery);
     }
   } catch (e) {
     return { error: e instanceof Error ? e.message : "That didn’t send." };
@@ -224,7 +233,7 @@ export async function publishAction(
 
   revalidatePath(`/studio/p/${slug}`);
   revalidatePath(`/p/${slug}`);
-  return { error: null };
+  return { error: null, warning: notifyWarning };
 }
 
 

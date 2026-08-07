@@ -150,3 +150,17 @@ test("the invite carries no sign-in token", () => {
     assert.ok(!/token=/.test(part), "no token in an email with an unbounded read time");
   }
 });
+
+test("the sender always carries a display name", async () => {
+  // A bare address lets the mail client invent one from the local part, so
+  // hello@ arrived as "Hello" — a stranger's first impression of the studio.
+  const { senderAddress } = await import("./send.ts");
+
+  assert.equal(senderAddress("hello@griida.com"), "Griida Projects <hello@griida.com>");
+  assert.equal(senderAddress(" hello@griida.com "), "Griida Projects <hello@griida.com>");
+  assert.equal(
+    senderAddress("Griida Studio <hello@griida.com>"),
+    "Griida Studio <hello@griida.com>",
+    "an explicit name is left alone",
+  );
+});

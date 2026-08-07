@@ -780,3 +780,31 @@ test("an oversized paste is refused whole rather than written halfway", async ()
     "nothing written — there is no transaction to undo a partial one",
   );
 });
+
+test("a failed notification is reported, and never fails the write", async () => {
+  const { sendToClient } = await import("./checklist-writes.ts");
+  const { notifyReviewReady, deliveryProblem } = await import("./notify.ts");
+
+  h.db.exec(`UPDATE links SET client_access_ok = 1 WHERE id = 'lnk_icons'`);
+  h.db.exec(`UPDATE checklist_items SET state='waived', waived_reason='t' WHERE checklist_id='cl_iconset'`);
+  const check = await sendToClient("dlv_iconset", "u_chike");
+
+  // SES isn't configured in the harness, so nothing is attempted at all —
+  // which is exactly the case that used to look identical to success.
+  const delivery = await notifyReviewReady({
+    projectId: check.projectId,
+    projectSlug: check.projectSlug,
+    projectName: check.projectName,
+    deliverableId: "dlv_iconset",
+    deliverableName: check.name,
+    actorId: "u_chike",
+  });
+
+  assert.equal(delivery.notConfigured, true);
+  assert.match(deliveryProblem(delivery) ?? "", /nobody was notified/i);
+  assert.equal(
+    h.one<{ status: string }>("SELECT status FROM deliverables WHERE id='dlv_iconset'")?.status,
+    "in_review",
+    "the work still moved — a courtesy failing is not the fact failing",
+  );
+});

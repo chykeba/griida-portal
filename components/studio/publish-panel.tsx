@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Loader2, RotateCcw, Send } from "lucide-react";
+import { Check, Loader2, RotateCcw, Send, TriangleAlert } from "lucide-react";
 import { publishAction, type ItemState } from "@/app/studio/p/[slug]/actions";
 import { Meta } from "../primitives";
 
@@ -33,15 +33,32 @@ export function PublishPanel({
   const done = submitted && !pending && !state.error;
 
   if (done) {
+    // A delivery problem is not a failure — the update IS published. But
+    // "we emailed them" and "we didn't and nobody said so" must never look
+    // the same, which is what the old copy did by claiming email wasn't wired
+    // long after it was.
+    const problem = state.warning;
     return (
-      <div className="animate-settle rounded-md border border-approved/30 bg-approved/[0.05] px-3.5 py-3" role="status">
+      <div
+        className={
+          problem
+            ? "animate-settle rounded-md border border-caution/40 bg-caution/[0.08] px-3.5 py-3"
+            : "animate-settle rounded-md border border-approved/30 bg-approved/[0.05] px-3.5 py-3"
+        }
+        role="status"
+      >
         <p className="flex items-center gap-2 text-small font-medium">
-          <Check className="size-4 text-approved" strokeWidth={2.5} aria-hidden />
+          {problem ? (
+            <TriangleAlert className="size-4 shrink-0 text-caution" strokeWidth={2} aria-hidden />
+          ) : (
+            <Check className="size-4 text-approved" strokeWidth={2.5} aria-hidden />
+          )}
           Published to {projectName}
         </p>
         <Meta className="mt-1 block">
-          It’s live on their portal now. (Notification emails aren’t wired yet —
-          they won’t know until they look.)
+          {problem
+            ? `It’s live on their portal — but ${problem.charAt(0).toLowerCase()}${problem.slice(1)} They won’t know until they look.`
+            : "It’s live on their portal, and we’ve emailed them."}
         </Meta>
       </div>
     );

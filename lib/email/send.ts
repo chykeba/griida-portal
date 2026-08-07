@@ -24,7 +24,21 @@ import {
  * the auth flow is walkable locally before SES is wired.
  */
 
-const FROM = process.env.EMAIL_FROM ?? "Griida <hello@griida.com>";
+/**
+ * The sender, always with a display name.
+ *
+ * A bare address leaves the mail client to invent one from the local part, so
+ * `hello@…` was arriving as "Hello" — a stranger's first impression of the
+ * studio. If EMAIL_FROM already carries a name in angle-bracket form it is
+ * used as given; a bare address gets one attached.
+ */
+const SENDER_NAME = process.env.EMAIL_FROM_NAME ?? "Griida Projects";
+
+export function senderAddress(configured = process.env.EMAIL_FROM ?? "hello@griida.com"): string {
+  return configured.includes("<") ? configured : `${SENDER_NAME} <${configured.trim()}>`;
+}
+
+const FROM = senderAddress();
 const REPLY_TO = process.env.EMAIL_REPLY_TO;
 
 interface SesConfig {
