@@ -3,6 +3,7 @@ import "server-only";
 import { query } from "./d1.ts";
 import { isEmailConfigured, sendReviewReady, sendTeamInvite, sendUpdate } from "../email/send.ts";
 import { randomToken } from "../auth/tokens.ts";
+import { issueNotificationLink } from "../auth/links.ts";
 
 /**
  * Telling the client something happened.
@@ -86,7 +87,6 @@ export async function notifyReviewReady(params: {
   actorId: string;
 }): Promise<Delivery> {
   const path = `/p/${params.projectSlug}/review/${params.deliverableId}`;
-  const url = `${APP_URL}${path}`;
 
   // The lookup itself is inside the guard. It was outside, which meant a
   // database hiccup here failed a write that had already succeeded — the exact
@@ -104,6 +104,9 @@ export async function notifyReviewReady(params: {
 
   for (const person of recipients) {
     try {
+      // One link per person, because it signs that person in. Minted inside
+      // the try so a token is never issued for a mail that then fails to send.
+      const url = await issueNotificationLink(person.id, path, APP_URL);
       await sendReviewReady(person.email, {
         firstName: person.firstName,
         projectName: params.projectName,
@@ -134,7 +137,6 @@ export async function notifyUpdatePublished(params: {
   actorId: string;
 }): Promise<Delivery> {
   const path = `/p/${params.projectSlug}`;
-  const url = `${APP_URL}${path}`;
 
   // The lookup itself is inside the guard. It was outside, which meant a
   // database hiccup here failed a write that had already succeeded — the exact
@@ -152,6 +154,7 @@ export async function notifyUpdatePublished(params: {
 
   for (const person of recipients) {
     try {
+      const url = await issueNotificationLink(person.id, path, APP_URL);
       await sendUpdate(person.email, {
         firstName: person.firstName,
         projectName: params.projectName,

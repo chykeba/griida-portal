@@ -68,7 +68,7 @@ export async function issueMagicLink(rawEmail: string, origin: string): Promise<
   // determined attacker, just enough that the button isn't a weapon.
   const recent = await query<{ n: number }>(
     `SELECT count(*) AS n FROM auth_tokens
-      WHERE user_id = ?1 AND used_at IS NULL
+      WHERE user_id = ?1 AND used_at IS NULL AND purpose = 'login'
         AND created_at > datetime('now', ?2)`,
     [user.id, `-${RATE_WINDOW_MINUTES} minutes`],
   );
@@ -76,7 +76,7 @@ export async function issueMagicLink(rawEmail: string, origin: string): Promise<
 
   const token = randomToken();
   await query(
-    `INSERT INTO auth_tokens (token, user_id, expires_at) VALUES (?1, ?2, ?3)`,
+    `INSERT INTO auth_tokens (token, user_id, expires_at, purpose) VALUES (?1, ?2, ?3, 'login')`,
     // Only the hash is stored. A database leak yields nothing presentable.
     [await hash(token), user.id, magicLinkExpiry()],
   );

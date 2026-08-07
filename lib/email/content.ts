@@ -87,6 +87,7 @@ export function reviewReadyEmail(params: {
     "",
     `There's something ready for you to look at on ${projectName}: ${deliverableName}.`,
     "",
+    "This link signs you in and works once — please don't forward it:",
     url,
     "",
     "No rush — but it's holding up the next bit, so the sooner the better.",
@@ -102,6 +103,10 @@ export function reviewReadyEmail(params: {
   <a href="${escapeAttr(url)}"
      style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;
             padding:13px 22px;border-radius:8px;font-weight:500;">Take a look</a>
+</p>
+<p style="margin:16px 0 0;font-size:13px;color:${FAINT};">
+  That button signs you straight in — no password, nothing to set up. It’s
+  yours alone and works once, so please don’t forward it.
 </p>
 <p style="margin:0;font-size:14px;color:${SOFT};">
   No rush — but it's holding up the next bit, so the sooner the better.
@@ -125,7 +130,8 @@ export function updatePublishedEmail(params: {
     "",
     body,
     "",
-    `See it in your portal: ${url}`,
+    `See it in your portal — this link signs you in and works once:`,
+    url,
   ].join("\n");
 
   const html = shell(`
@@ -138,6 +144,10 @@ export function updatePublishedEmail(params: {
   <a href="${escapeAttr(url)}"
      style="display:inline-block;background:${INK};color:#ffffff;text-decoration:none;
             padding:12px 20px;border-radius:8px;font-weight:500;">Open your portal</a>
+</p>
+<p style="margin:16px 0 0;font-size:13px;color:${FAINT};">
+  That button signs you straight in — no password, nothing to set up. It’s
+  yours alone and works once, so please don’t forward it.
 </p>`);
 
   return { subject: `${projectName} — an update`, text, html };

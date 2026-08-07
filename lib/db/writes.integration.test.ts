@@ -808,3 +808,78 @@ test("a failed notification is reported, and never fails the write", async () =>
     "the work still moved — a courtesy failing is not the fact failing",
   );
 });
+
+/* -------------------------------------------------------------------------- */
+/* One click from the email into the portal                                    */
+/* -------------------------------------------------------------------------- */
+
+test("a notification link signs that person in and lands them on the thing", async () => {
+  const { issueNotificationLink } = await import("../auth/links.ts");
+  const { hash, landingFor } = await import("../auth/tokens.ts");
+
+  const url = await issueNotificationLink("u_tunde", "/p/brand-identity", "https://x.test");
+  const parsed = new URL(url);
+  const token = parsed.searchParams.get("token")!;
+
+  // The raw token is never stored — only its hash, so a database leak yields
+  // nothing anyone could click.
+  assert.equal(h.count("auth_tokens", `token = '${await hash(token)}'`), 1);
+  assert.equal(h.count("auth_tokens", `token = '${token}'`), 0, "raw token must not be stored");
+
+  const row = h.one<{ user_id: string; purpose: string; used_at: string | null }>(
+    "SELECT user_id, purpose, used_at FROM auth_tokens WHERE token = ?",
+    await hash(token),
+  )!;
+  assert.equal(row.user_id, "u_tunde");
+  assert.equal(row.purpose, "notify");
+  assert.equal(row.used_at, null);
+
+  // And it deep-links: the client lands on the project, not a generic home.
+  assert.equal(landingFor("client", parsed.searchParams.get("next")), "/p/brand-identity");
+});
+
+test("a notification link cannot be pointed off-site", async () => {
+  const { issueNotificationLink } = await import("../auth/links.ts");
+  for (const evil of ["//evil.example/x", "https://evil.example", "/\\evil.example"]) {
+    const url = await issueNotificationLink("u_tunde", evil, "https://x.test");
+    assert.equal(
+      new URL(url).searchParams.get("next"),
+      "/",
+      `${evil} must not survive into the link`,
+    );
+  }
+});
+
+test("notification links do not use up a client’s allowance to request one", async () => {
+  const { issueNotificationLink } = await import("../auth/links.ts");
+  const { MAX_LINKS_PER_WINDOW } = await import("../auth/tokens.ts");
+
+  // Publishing a lot must never lock someone out of asking for their own link.
+  for (let n = 0; n < MAX_LINKS_PER_WINDOW + 2; n++) {
+    await issueNotificationLink("u_tunde", "/p/brand-identity", "https://x.test");
+  }
+  const counted = h.count(
+    "auth_tokens",
+    `user_id = 'u_tunde' AND used_at IS NULL AND purpose = 'login'`,
+  );
+  assert.equal(counted, 0, "the rate limit counts requested links only");
+});
+
+test("each recipient gets their own link, and it is theirs alone", async () => {
+  const { issueNotificationLink } = await import("../auth/links.ts");
+  const { hash } = await import("../auth/tokens.ts");
+
+  const one = await issueNotificationLink("u_tunde", "/p/brand-identity", "https://x.test");
+  const two = await issueNotificationLink("u_zainab", "/p/brand-identity", "https://x.test");
+  const tokenOf = (u: string) => new URL(u).searchParams.get("token")!;
+
+  assert.notEqual(tokenOf(one), tokenOf(two));
+  assert.equal(
+    h.one<{ user_id: string }>(
+      "SELECT user_id FROM auth_tokens WHERE token = ?",
+      await hash(tokenOf(two)),
+    )?.user_id,
+    "u_zainab",
+    "a link signs in exactly the person it was addressed to",
+  );
+});
