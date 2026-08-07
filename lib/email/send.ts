@@ -59,6 +59,11 @@ export function isEmailConfigured(): boolean {
   return readConfig() !== null;
 }
 
+/** Which region we're actually sending through. Surfaced so it can be checked. */
+export function emailRegion(): string | null {
+  return readConfig()?.region ?? null;
+}
+
 /** One client per lambda instance rather than per send. */
 let cached: SESv2Client | null = null;
 
@@ -109,10 +114,15 @@ async function send(to: string, body: EmailBody): Promise<void> {
     // but jargon-heavy, and the two below account for most first-run failures.
     const name = error instanceof Error ? error.name : "Unknown";
     if (name === "MessageRejected") {
+      // The region is named because sandbox status, production access and
+      // verified identities are all PER-REGION. Getting production access in
+      // one region and pointing SES_REGION at another looks exactly like
+      // never having asked for it, and the error alone gave no way to tell.
       throw new Error(
-        `SES rejected the message. If the account is still in the sandbox it can ` +
-          `only send to verified addresses — check the SES console, or request ` +
-          `production access. (${name})`,
+        `SES rejected this in ${config.region}. Sandbox status, production access and ` +
+          `verified identities are all per-region — if you were granted production ` +
+          `access in a different region, this one is still sandboxed and will only ` +
+          `send to verified addresses. (${name})`,
       );
     }
     if (name === "NotFoundException" || name === "BadRequestException") {

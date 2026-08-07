@@ -1,7 +1,13 @@
 import "server-only";
 
 import { query } from "./d1.ts";
-import { isEmailConfigured, sendReviewReady, sendTeamInvite, sendUpdate } from "../email/send.ts";
+import {
+  emailRegion,
+  isEmailConfigured,
+  sendReviewReady,
+  sendTeamInvite,
+  sendUpdate,
+} from "../email/send.ts";
 import { randomToken } from "../auth/tokens.ts";
 import { issueNotificationLink } from "../auth/links.ts";
 
@@ -39,7 +45,8 @@ export function deliveryProblem(d: Delivery): string | null {
   if (d.notConfigured) return "Email isn’t configured, so nobody was notified.";
   if (d.failed.length === 0) return null;
   const who = d.failed.map((f) => f.email).join(", ");
-  return `Couldn’t email ${who}. ${d.failed[0].reason}`;
+  const region = emailRegion();
+  return `Couldn’t email ${who}. ${d.failed[0].reason}${region ? ` [sending via ${region}]` : ""}`;
 }
 
 interface Recipient {
